@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentSessionRecord schema 1",
+  "type": "object",
+  "required": ["schema_version", "session_id", "agent_id", "purpose", "key_id", "key_expires_at_unix", "injected_on", "direct_gateway", "profile_version", "proxy_port", "written_at_unix"],
+  "properties": {
+    "schema_version": {"const": 1}, "session_id": {"type": "string", "minLength": 1},
+    "agent_id": {"type": "string"}, "purpose": {"type": "string"}, "key_id": {"type": "string", "format": "uuid"},
+    "key_expires_at_unix": {"type": "integer"}, "injected_on": {"type": "array", "items": {"type": "string"}},
+    "direct_gateway": {"type": "boolean"}, "profile_version": {"type": "integer"}, "proxy_port": {"type": "integer"}, "written_at_unix": {"type": "integer"}
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "contract": "S-OL-1", "status": "owner-authorized stub",
+  "request": {"method": "POST", "path": "/v1/proposals", "required": ["action_type", "party_ref", "parameters", "justification", "run_id", "trace_ref"]},
+  "response": {"success_statuses": [200, 202], "required": ["proposal_id", "status"]},
+  "security": "Liam sends no Authorization header; nono-proxy injects the session agent credential."
+}

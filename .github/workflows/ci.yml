@@ -1,0 +1,12 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  ci-elevated:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt -- --check
+      - run: cargo test --locked --offline
+      - run: cargo clippy --locked --offline --all-targets -- -D warnings
+      - run: cargo build --locked --offline --release

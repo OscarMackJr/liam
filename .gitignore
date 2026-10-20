@@ -1,0 +1,9 @@
+# Local configuration and evidence are never committed.
+*.toml.local
+*.override.toml
+.env
+runs/*
+!runs/.gitkeep
+stubs/records/generated/
+target/
+

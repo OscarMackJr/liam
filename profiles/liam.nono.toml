@@ -1,0 +1,16 @@
+# Draft Liam profile. This is a policy artifact for nono-owner review, not a
+# source of credentials. Its syntax and receipt representation are blocked on
+# the NONO v0.4.3 receipt-contract amendment.
+profile_version = "0.3.0"
+
+[agent]
+agent_id = "liam"
+purpose_source = "launch_arg"
+key_ttl_seconds = 3600
+inject_on = ["hometown", "olive"]
+
+[filesystem]
+# The only intended grants: executable directory (read/traverse), config and
+# receipt (read), and evidence directory (read/write). No additional grant is
+# authorized without the handoff checkpoint.
+

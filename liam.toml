@@ -1,0 +1,26 @@
+[agent]
+version = "0.4.0"
+agent_id = "liam"
+
+[nono]
+profile_min_version = 4
+record_max_age_seconds = 120
+record_public_key = ""
+expected_token_arm = ""
+
+[hometown]
+base_url = "https://hometown.invalid"
+timeout_seconds = 90
+
+[olive]
+base_url = "https://olive.invalid"
+catalog_path = "contracts/catalog-0.4.json"
+catalog_version = "0.4"
+timeout_seconds = 30
+
+[vocabulary]
+path = "contracts/vendored/vocabulary.yaml"
+sha256 = "f3412d6844b50209d0cb2d564af919ee2ac43304b3afb69a919bc65bb6ccb116"
+
+[evidence]
+runs_dir = "%LOCALAPPDATA%\\Fiskroad\\liam\\runs"

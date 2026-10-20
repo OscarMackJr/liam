@@ -1,0 +1,45 @@
+
+You are creating a NEW repository, liam, a Windows desktop agent in the Fiskroad program. Nothing exists yet.
+
+Read first, in this order
+~/Downloads/DECISION_desktop-agent-nono-integration.md — the boundary you are implementing. Liam runs under nono and integrates only through contracts.
+specs/LIAM_DESIGN_SPEC_v0.1.md — what to build. Section 2 holds the design decisions; section 12 the requirements; section 13 the assumptions and open items.
+specs/LIAM_TEST_SPEC_v0.1.md — how it is verified. Every REQ maps to TCs there.
+
+Document	Repository and path	Produced in
+PROGRAM_SHARED_VOCABULARY_v0.4.md	fiskroad/specs/	v0.4 POC-2 spec set
+vocabulary.yaml (v0.4, SHA-256 60a44f00…)	~/fiskroad/contracts/vocabulary.yaml (canonical); vendored into config/vendored/ in popeye and contracts/vendored/ in hometown and olive	Minted in that session from the v0.3 base, carrying the three permanent POC tenant UUIDs
+OLIVE_CHARTER_v0.4.md	~/olive/specs/ (new repo; the charter was still pending approval when the session ended)	v0.4 set
+POPEYE_v0.4.md	~/popeye/specs/	v0.4 set
+NONO_FISKROAD_INTEGRATION_v0.3.md	~/nono/specs/ (your fork)
+
+
+Hard rules (stop and say so rather than work around any of them)
+No secrets anywhere. No gateway key, provider key or token in code, config, environment handling, logs or tests. nono-proxy injects the key; Liam never reads one.
+No direct network. All HTTP goes through the proxy from the environment. Do not open sockets, resolve names, or add an allowlist of your own.
+No execution. Liam proposes actions to olive. It never calls a target system and never runs model output.
+No child processes. Liam spawns nothing.
+No nono coupling. Liam reads the receipt file and nothing else of nono's: no IPC, no service calls, no profile edits.
+Content-free evidence. Prompt text, responses, context values and party identifiers never appear in the run record, run log, stderr or any test artifact other than the sentinel checks that prove this.
+Fail closed. Every check failure exits with the documented code and one stderr line, before any network request.
+Contract mismatch is a stop condition. If the real receipt fields (crates/nono/src/receipt.rs), hometown read API, olive proposal API or gateway metadata handling differ from the spec's assumptions (§4.2, §13), update the relevant table in the spec, record it in README.md, and stop for review. Do not silently adapt.
+Stack and layout
+
+Rust, single static binary, per spec D1 and §11. Stubs behind a stubs cargo feature that release builds exclude. CI on windows-latest, tagged ci-elevated.
+
+Sequence
+Scaffold the repository per §11: README.md (status: POC scaffold, assumptions A1–A4 listed), AGENTS.md (these hard rules), specs/, contracts/, profiles/liam.nono.toml, .gitignore covering *.toml overrides, runs/, .env.
+Write contracts/receipt-fields.md from spec §4.2, then compare it to receipt.rs in the nono fork. Stop here and report differences before continuing.
+Implement startup: config load, vocabulary hash check, proxy env check, receipt self-check, exit codes. Write the TC-START, TC-VOC and TC-BUILD tests and make them pass.
+Implement the stubs and the capture mechanism (§2.1 of the test spec), including the receipt fixture generator.
+Implement the three clients and the task (§3.3, §5–§7). Write TC-NET-01/03, TC-KEY, TC-META, TC-CTX, TC-ACT, TC-FAIL, TC-SEC-03.
+Implement evidence (§8). Write TC-EVD, including the sentinel test.
+Write scripts/launch-under-nono.ps1 and document the dev-standard-user and manual-hardware cases as a runbook. Do not mark them verified; they are run by a person.
+Produce the results table in the format of test spec §4, with every unmeasured case marked not measured.
+Checkpoints where you stop for review
+After step 2 (receipt contract comparison).
+Before step 5 if any assumption A1–A4 cannot be confirmed from the attached documents.
+Before adding any filesystem grant to liam.nono.toml beyond the three in spec §4.1.
+Summary you deliver at the end
+
+What was built, which TCs pass in ci-elevated, which cases are runbook-only, every assumption you had to make, and every place the specs needed changing. Measured results only; no claims about environments you did not run in.
