@@ -1,9 +1,10 @@
 use liam::{
     clients::{
+        build_proxy_client,
         hometown::{HometownError, HttpHometownClient},
         olive::HttpOliveClient,
     },
-    config::{expand_local_app_data, load, proxy_port, sha256_hex},
+    config::{expand_local_app_data, load, sha256_hex, validated_proxy},
     evidence::Evidence,
     receipt::{ensure_not_writable, validate_startup, StartupPolicy},
     task::{run, TaskError},
@@ -96,10 +97,12 @@ fn main() {
     }
     let https_proxy = env::var("HTTPS_PROXY").unwrap_or_default();
     let http_proxy = env::var("HTTP_PROXY").unwrap_or_default();
-    let port = proxy_port(&https_proxy, &http_proxy).unwrap_or_else(|reason| fail(11, reason));
-    if env::var("NO_PROXY").unwrap_or_default() != "" {
-        fail(11, "env:no_proxy");
-    }
+    let proxy = validated_proxy(
+        &https_proxy,
+        &http_proxy,
+        &env::var("NO_PROXY").unwrap_or_default(),
+    )
+    .unwrap_or_else(|reason| fail(11, reason));
     if !config.nono.record_public_key.is_empty() {
         fail(10, "receipt:signature");
     }
@@ -125,26 +128,33 @@ fn main() {
         config.hometown.timeout_seconds,
         config.olive.timeout_seconds,
     );
-    let session = validate_startup(&receipt, &agent, &policy, launch_process_id(), now(), port)
-        .unwrap_or_else(|error| fail(10, &error.0));
+    let session = validate_startup(
+        &receipt,
+        &agent,
+        &policy,
+        launch_process_id(),
+        now(),
+        proxy.port,
+    )
+    .unwrap_or_else(|error| fail(10, &error.0));
     let run_id = Uuid::now_v7().to_string();
     let mut evidence = Evidence::new(
         expand_local_app_data(&config.evidence.runs_dir),
         run_id.clone(),
         now(),
     );
+    let transport =
+        build_proxy_client(&proxy.url).unwrap_or_else(|_| fail(21, "hometown:unavailable"));
     let hometown = HttpHometownClient::new(
+        transport.client(),
         &config.hometown.base_url,
-        &https_proxy,
         config.hometown.timeout_seconds,
-    )
-    .unwrap_or_else(|_| fail(21, "hometown:unavailable"));
+    );
     let olive = HttpOliveClient::new(
+        transport.client(),
         &config.olive.base_url,
-        &https_proxy,
         config.olive.timeout_seconds,
-    )
-    .unwrap_or_else(|_| fail(22, "olive:unavailable"));
+    );
     let catalog = fs::read_to_string(&config.olive.catalog_path)
         .unwrap_or_else(|_| fail(22, "olive:catalog"));
     let task = run(

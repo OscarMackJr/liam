@@ -379,3 +379,40 @@ fn evidence_path_failure_prints_answer_then_exits_with_evidence_write_error() {
     );
     assert_eq!(proxy.captured().request_count, 1);
 }
+
+#[test]
+fn non_loopback_proxy_environment_fails_before_any_request_or_evidence() {
+    let hometown = HometownStub::answer_without_proposal();
+    let proxy = CaptureProxy::forward_once_to(hometown.base_url());
+    let fixture = StubRecordPair::for_proxy(proxy.port());
+    let root = std::env::current_dir().unwrap();
+    let path = |value: &std::path::Path| value.to_string_lossy().replace('\\', "/");
+    fs::write(fixture.directory().join("liam.toml"), format!("[agent]\nversion=\"0.4.0\"\nagent_id=\"liam\"\n[nono]\nprofile_min_version=4\nrecord_max_age_seconds=120\nexpected_token_arm=\"\"\n[hometown]\nbase_url=\"{}\"\ntimeout_seconds=1\n[olive]\nbase_url=\"http://olive.invalid\"\ncatalog_path='{}'\ncatalog_version=\"0.4\"\ntimeout_seconds=1\n[vocabulary]\npath='{}'\nsha256=\"f3412d6844b50209d0cb2d564af919ee2ac43304b3afb69a919bc65bb6ccb116\"\n[evidence]\nruns_dir='{}'\n", hometown.base_url(), path(&root.join("contracts/catalog-0.4.json")), path(&root.join("contracts/vendored/vocabulary.yaml")), path(&fixture.directory().join("runs")))).unwrap();
+    let invalid_proxy = format!("http://localhost:{}", proxy.port());
+    let output = Command::new(env!("CARGO_BIN_EXE_liam"))
+        .current_dir(fixture.directory())
+        .args([
+            "--purpose",
+            "servicing",
+            "--party",
+            "opaque",
+            "--question",
+            "question",
+        ])
+        .env("LIAM_STUBS", "1")
+        .env("LIAM_STUB_PID", "0")
+        .env("HTTPS_PROXY", &invalid_proxy)
+        .env("HTTP_PROXY", &invalid_proxy)
+        .env("NO_PROXY", "")
+        .env("NONO_RECEIPT_PATH", fixture.receipt_path())
+        .env("NONO_AGENT_RECORD_PATH", fixture.agent_path())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(11));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr).trim_end(),
+        "liam: 11 env:proxy_not_loopback"
+    );
+    assert_eq!(proxy.captured().request_count, 0);
+    assert!(!fixture.directory().join("runs").exists());
+}

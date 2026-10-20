@@ -101,3 +101,16 @@ Enforced in Liam's code, not only by nono's fence:
 | Revised test | TC-NET-03 |
 | New tests | TC-NET-05, -06, -07 (`ci-elevated`), -08 (`dev-standard-user`) |
 | New assumption | A5 (nono owner to confirm) |
+
+---
+
+## Ratification Record
+
+| Field | Value |
+|---|---|
+| Decision | **Ratified**: D14 permits Liam's single validated loopback-proxy socket destination and prohibits runtime name resolution |
+| Date | 2026-10-20 |
+| Ratified by | Oscar Mack (architecture and risk decisions) |
+| Scope ratified | D14; amended Liam design §§9, 10.2, 11 and 12; revised TC-NET-03; new TC-NET-05 through TC-NET-08; assumption A5 |
+| Does not change | The contract-only Nono boundary, Nono v0.4.3 record contract, or the ratified agent-key seams |
+| Implementation condition | Liam must implement the code-level controls and pass the local tests before a real-session claim; TC-NET-08 remains dev-standard-user evidence |

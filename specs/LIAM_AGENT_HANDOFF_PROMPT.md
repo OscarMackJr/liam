@@ -8,7 +8,7 @@ You are creating a NEW repository, `liam`, a Windows desktop agent in the Fiskro
 
 ## Read first, in this order
 1. `DECISION_desktop-agent-nono-integration.md` (ratified 2026-10-19) — the boundary you are implementing. Liam runs **under** nono and integrates **only** through contracts.
-2. `LIAM_DESIGN_SPEC_v0.4.md` — what to build. Section 2 holds the design decisions; section 12 the requirements; section 13 the assumptions and open items.
+2. `LIAM_DESIGN_SPEC_v0.4.md` and ratified `LIAM_AMENDMENT_v0.4.1_proxy-transport.md` — what to build. Section 2 holds the design decisions; section 12 the requirements; section 13 the assumptions and open items.
 3. `LIAM_TEST_SPEC_v0.4.md` — how it is verified. Every REQ maps to TCs there.
 4. `PROGRAM_SHARED_VOCABULARY_v0.4.md` and `vocabulary.yaml` — vendor the yaml unchanged into `contracts/vendored/` and record its SHA-256 in `contracts/vendored/VENDORED.md`.
 5. The components Liam depends on: `NONO_FISKROAD_INTEGRATION_v0.3.md`, `NONO_v0.4.md`, `NONO_v0.4.1.md` (agent-key injection; supersedes v0.3 §2.1 for agent profiles), `POPEYE_CORRECTIONS_v0.3.md` §3 (endpoint detection contract), `POPEYE_v0.4.md` §2 and §4, `POPEYE_v0.4.1.md` (agent key exchange), `NONO_v0.4.2.md` and `POPEYE_v0.4.2.md` (injection scope, introspection, hometown relay; **ratified 2026-10-19**), `DECISION_agent-key-service-scope.md`, `NONO_v0.4.3.md` and `POPEYE_v0.4.3.md` (agent-session record, `KeyId`; **ratified 2026-10-19**), `HOMETOWN_v0.4.md`, `OLIVE_CHARTER_v0.4.md`, and the fork's `receipt.rs`, `attestation.rs` and `receipt_content_free_scan.rs` at `29557a93`.
@@ -16,7 +16,7 @@ You are creating a NEW repository, `liam`, a Windows desktop agent in the Fiskro
 
 ## Hard rules (stop and say so rather than work around any of them)
 - **No secrets anywhere.** No gateway key, provider key or token in code, config, environment handling, logs or tests. nono-proxy mints and injects a session agent key; Liam never reads one, and never sends an `Authorization` header to hometown or olive. Liam never calls the gateway; hometown makes the model call (design v0.3 D5, D12).
-- **No direct network.** All HTTP goes through the proxy from the environment. Do not open sockets, resolve names, or add an allowlist of your own.
+- **One socket destination, no DNS.** Connect only to nono-proxy at the validated `http://127.0.0.1:<port>`; build one HTTP client with `no_proxy()`, an explicit `Proxy::all` and a deny-all resolver; no socket or resolver calls in Liam's own source. Do not add an allowlist of your own.
 - **No execution.** Liam proposes actions to olive. It never calls a target system and never runs model output.
 - **No child processes.** Liam spawns nothing.
 - **No nono coupling.** Liam reads the receipt and the agent-session record and nothing else of nono's: no IPC, no service calls, no profile edits, never the session-end record.

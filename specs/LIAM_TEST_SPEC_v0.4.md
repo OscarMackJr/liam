@@ -1,5 +1,7 @@
 # Liam — Windows Desktop Agent: Test Specification v0.4
 
+Amendment: `LIAM_AMENDMENT_v0.4.1_proxy-transport.md` is **ratified 2026-10-20**. Its revised TC-NET-03 and new TC-NET-05 through TC-NET-08 supersede this document's §3.2 entries where they differ.
+
 Version: 0.4
 Status: **Ratified 2026-10-19, POC scope** — companion to `LIAM_DESIGN_SPEC_v0.4.md`. Section references (§) point there unless stated.
 Audience: the implementing LLM agent, reviewers of the POC evidence.

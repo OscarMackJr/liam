@@ -7,6 +7,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo fmt -- --check
-      - run: cargo test --locked --offline
-      - run: cargo clippy --locked --offline --all-targets -- -D warnings
+      - run: cargo test --locked --offline --features stubs
+      - run: cargo test --locked --offline --features stubs -- --ignored
+      - run: cargo clippy --locked --offline --all-targets --all-features -- -D warnings
       - run: cargo build --locked --offline --release

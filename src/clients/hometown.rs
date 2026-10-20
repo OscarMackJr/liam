@@ -41,18 +41,15 @@ pub trait HometownClient {
 pub struct HttpHometownClient {
     client: Client,
     endpoint: String,
+    timeout_seconds: u64,
 }
 impl HttpHometownClient {
-    pub fn new(base_url: &str, proxy: &str, timeout_seconds: u64) -> Result<Self, HometownError> {
-        let client = Client::builder()
-            .proxy(reqwest::Proxy::all(proxy).map_err(|_| HometownError::Unavailable)?)
-            .timeout(Duration::from_secs(timeout_seconds))
-            .build()
-            .map_err(|_| HometownError::Unavailable)?;
-        Ok(Self {
+    pub fn new(client: Client, base_url: &str, timeout_seconds: u64) -> Self {
+        Self {
             client,
             endpoint: format!("{}/v1/agent/answer", base_url.trim_end_matches('/')),
-        })
+            timeout_seconds,
+        }
     }
 }
 impl HometownClient for HttpHometownClient {
@@ -60,6 +57,7 @@ impl HometownClient for HttpHometownClient {
         let response = self
             .client
             .post(&self.endpoint)
+            .timeout(Duration::from_secs(self.timeout_seconds))
             .json(request)
             .send()
             .map_err(|_| HometownError::Unavailable)?;

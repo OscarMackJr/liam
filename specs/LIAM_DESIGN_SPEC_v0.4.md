@@ -2,6 +2,7 @@
 
 Version: 0.4
 Status: **Ratified 2026-10-19, POC scope** — implements the contract-only decision in `DECISION_desktop-agent-nono-integration.md`
+Amendment: `LIAM_AMENDMENT_v0.4.1_proxy-transport.md` is **ratified 2026-10-20**. Its D14 text supersedes this specification's D3, §9, §10.2, §11 exit-code 11 description, and REQ-LIAM-03 where they differ.
 Repository: `liam` (new, under `oscarmackjr-twg`). Codename `liam` is a placeholder; renaming is a find-and-replace.
 Program: Fiskroad. Liam is a **consumer** of hometown, olive and nono. It owns no governed store, holds **no credential of any kind**, and **never calls the model gateway**. Its requests to hometown and olive carry a short-lived session agent key that nono-proxy mints and injects; Liam never sees it.
 Audience: the implementing LLM agent, the nono owner, the hometown owner, the olive owner, the popeye owner.
