@@ -5,5 +5,5 @@
 runs/*
 !runs/.gitkeep
 stubs/records/generated/
-target/
+/target/
 
