@@ -17,14 +17,14 @@ fn successful_process_run_makes_one_answer_request_and_writes_content_free_evide
     let runs = fixture.directory().join("runs");
     write_test_config(
         fixture.directory(),
-        &hometown.base_url(),
+        hometown.base_url(),
         "http://olive.invalid",
         2,
     );
     let output = run_liam(
         EXE,
         &fixture,
-        &proxy.url(),
+        proxy.url(),
         &[
             "--purpose",
             "servicing",
@@ -59,14 +59,14 @@ fn process_run_submits_at_most_one_catalog_valid_proposal() {
     let fixture = StubRecordPair::for_proxy(proxy.port());
     write_test_config(
         fixture.directory(),
-        &hometown.base_url(),
-        &olive.base_url(),
+        hometown.base_url(),
+        olive.base_url(),
         2,
     );
     let output = run_liam(
         EXE,
         &fixture,
-        &proxy.url(),
+        proxy.url(),
         &[
             "--purpose",
             "servicing",
@@ -95,14 +95,14 @@ fn process_retries_hometown_once_after_a_server_error() {
     let runs = fixture.directory().join("runs");
     write_test_config(
         fixture.directory(),
-        &hometown.base_url(),
+        hometown.base_url(),
         "http://olive.invalid",
         2,
     );
     let output = run_liam(
         EXE,
         &fixture,
-        &proxy.url(),
+        proxy.url(),
         &[
             "--purpose",
             "servicing",
@@ -163,14 +163,14 @@ fn repeated_hometown_server_errors_exit_unavailable_after_two_requests() {
     let fixture = StubRecordPair::for_proxy(proxy.port());
     write_test_config(
         fixture.directory(),
-        &hometown.base_url(),
+        hometown.base_url(),
         "http://olive.invalid",
         1,
     );
     let output = run_liam(
         EXE,
         &fixture,
-        &proxy.url(),
+        proxy.url(),
         &[
             "--purpose",
             "servicing",
@@ -196,14 +196,14 @@ fn repeated_hometown_timeouts_exit_unavailable_after_two_requests_without_olive(
     let fixture = StubRecordPair::for_proxy(proxy.port());
     write_test_config(
         fixture.directory(),
-        &hometown.base_url(),
+        hometown.base_url(),
         "http://olive.invalid",
         1,
     );
     let output = run_liam(
         EXE,
         &fixture,
-        &proxy.url(),
+        proxy.url(),
         &[
             "--purpose",
             "servicing",
@@ -231,7 +231,7 @@ fn evidence_path_failure_prints_answer_then_exits_with_evidence_write_error() {
     fs::write(&runs_file, "not a directory").unwrap();
     write_test_config_with_runs(
         fixture.directory(),
-        &hometown.base_url(),
+        hometown.base_url(),
         "http://olive.invalid",
         1,
         &runs_file,
@@ -239,7 +239,7 @@ fn evidence_path_failure_prints_answer_then_exits_with_evidence_write_error() {
     let output = run_liam(
         EXE,
         &fixture,
-        &proxy.url(),
+        proxy.url(),
         &[
             "--purpose",
             "servicing",
@@ -266,7 +266,7 @@ fn non_loopback_proxy_environment_fails_before_any_request_or_evidence() {
     let fixture = StubRecordPair::for_proxy(proxy.port());
     write_test_config(
         fixture.directory(),
-        &hometown.base_url(),
+        hometown.base_url(),
         "http://olive.invalid",
         1,
     );
