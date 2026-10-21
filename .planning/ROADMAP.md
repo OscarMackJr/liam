@@ -57,7 +57,7 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 01-11-PLAN.md — clean-tree measurement and per-TC RESULTS.md
+- [x] 01-11-PLAN.md — clean-tree measurement and per-TC RESULTS.md
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. v0.4.1 Conformance | 10/12 | In Progress|  |
+| 1. v0.4.1 Conformance | 11/12 | In Progress|  |
 | 2. Real nono Session | 0/TBD | Not started | - |
 | 3. Live hometown and popeye | 0/TBD | Not started | - |
 | 4. Live olive | 0/TBD | Not started | - |
