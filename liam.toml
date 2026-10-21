@@ -20,7 +20,7 @@ timeout_seconds = 30
 
 [vocabulary]
 path = "contracts/vendored/vocabulary.yaml"
-sha256 = "f3412d6844b50209d0cb2d564af919ee2ac43304b3afb69a919bc65bb6ccb116"
+sha256 = "60a44f00db0daafcad3a4e11fe8fcbb2821e1ca7879302bae413b212a0c1e8e7"
 
 [evidence]
 runs_dir = "%LOCALAPPDATA%\\Fiskroad\\liam\\runs"

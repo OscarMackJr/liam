@@ -9,8 +9,7 @@ use std::{
 };
 
 pub const AGENT_VERSION: &str = "0.4.1";
-// CONF-11 replaces this with the canonical 60a44f00... value.
-pub const VOCAB_SHA256: &str = "f3412d6844b50209d0cb2d564af919ee2ac43304b3afb69a919bc65bb6ccb116";
+pub const VOCAB_SHA256: &str = "60a44f00db0daafcad3a4e11fe8fcbb2821e1ca7879302bae413b212a0c1e8e7";
 
 fn slash(value: &Path) -> String {
     value.to_string_lossy().replace('\\', "/")

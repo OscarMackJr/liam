@@ -99,14 +99,13 @@ each is recorded here for user review and none is a confirmed upstream fact.
 - Evidence note: `layers_outside_expectancy_scope` is written as a list of
   `{"id", "status"}` objects, as in design spec 8.1.
 
-## Vocabulary deviation
+## Vocabulary
 
-`contracts/vendored/vocabulary.yaml` is vendored unchanged from the supplied
-placeholder input. Its SHA-256 is
-`f3412d6844b50209d0cb2d564af919ee2ac43304b3afb69a919bc65bb6ccb116`.
-The canonical `60a44f00db0daafcad3a4e11fe8fcbb2821e1ca7879302bae413b212a0c1e8e7`
-remains the POC exit criterion; this placeholder must not be treated as a
-passing canonical-vocabulary check.
+`contracts/vendored/vocabulary.yaml` is the canonical Fiskroad vocabulary (fiskroad
+`contracts/vocabulary.yaml`, v0.4, LF), vendored byte-for-byte and verified to
+SHA-256 `60a44f00db0daafcad3a4e11fe8fcbb2821e1ca7879302bae413b212a0c1e8e7`,
+which `liam.toml` pins. `.gitattributes` marks `contracts/vendored/**` as
+`-text` so checkouts do not alter the bytes.
 
 ## Offline dependencies
 

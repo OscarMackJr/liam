@@ -26,11 +26,11 @@ tenant_id_format: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 # labels only and never travel as identifiers.
 poc_tenants:
   - display_name: TENANT_ALPHA
-    tenant_id: 00000000-0000-0000-0000-000000000000   # REPLACE with the committed UUID from fiskroad/contracts/vocabulary.yaml
+    tenant_id: 5325ffe9-5727-4d88-9832-aebabb8d0538
   - display_name: TENANT_BETA
-    tenant_id: 00000000-0000-0000-0000-000000000000   # REPLACE
+    tenant_id: f92c9dba-50f1-4cad-9690-5d79f8ded335
   - display_name: TENANT_GAMMA
-    tenant_id: 00000000-0000-0000-0000-000000000000   # REPLACE
+    tenant_id: 8d61d9c2-e603-439b-8322-996c3099d503
 
 # ---- new at v0.4 ----
 

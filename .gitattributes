@@ -3,3 +3,5 @@
 vendor/** -text
 # Spec bytes and hashes must stay stable regardless of autocrlf.
 specs/** -text
+# Vendored contract files are hashed; keep exact bytes (LF) regardless of autocrlf.
+contracts/vendored/** -text

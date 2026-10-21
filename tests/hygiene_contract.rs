@@ -15,10 +15,8 @@
 //! TC-KEY-03 does not read the repo-root `.env` file: its contents are
 //! deliberately never opened by tooling.
 //!
-//! Vocabulary pin note: the LVOC tests measure the working-tree
-//! vocabulary.yaml as it is (no -text attribute is set on it, so a fresh
-//! checkout can change its SHA-256). The canonical 60a44f00... assertion is
-//! `#[ignore]`d until plan 01-12 (CONF-11).
+//! Vocabulary pin note: `contracts/vendored/**` carries a `-text` attribute, so
+//! checkouts keep the canonical vocabulary bytes (SHA-256 60a44f00...).
 
 mod common;
 
@@ -379,7 +377,6 @@ fn tc_lvoc_02_modified_vocabulary_exits_11_before_any_request() {
 }
 
 #[test]
-#[ignore = "blocked on CONF-11"]
 fn tc_lvoc_canonical_hash_pinned() {
     assert_eq!(pinned_sha256(), CANONICAL_VOCAB_SHA256);
     let bytes = fs::read(repo("contracts/vendored/vocabulary.yaml")).unwrap();

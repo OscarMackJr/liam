@@ -1,12 +1,11 @@
 # Vendored Fiskroad vocabulary
 
-Source: `specs/_agent_inputs/vocabulary.yaml` in the Liam handoff set.
+Source: fiskroad `contracts/vocabulary.yaml` (v0.4, LF), supplied by the
+program owner and vendored byte-for-byte on 2026-10-21 (plan 01-12, CONF-11).
 
-The file is copied unchanged. Current supplied-placeholder SHA-256:
+This is the canonical vocabulary. Verified SHA-256:
 
-`f3412d6844b50209d0cb2d564af919ee2ac43304b3afb69a919bc65bb6ccb116`
+`60a44f00db0daafcad3a4e11fe8fcbb2821e1ca7879302bae413b212a0c1e8e7`
 
-The canonical SHA-256 required for POC exit remains
-`60a44f00db0daafcad3a4e11fe8fcbb2821e1ca7879302bae413b212a0c1e8e7`.
-This mismatch is a documented placeholder deviation, not verification.
-
+`liam.toml` and `tests/common/mod.rs` pin the same value. `.gitattributes`
+sets `contracts/vendored/** -text` so autocrlf cannot change the bytes.
