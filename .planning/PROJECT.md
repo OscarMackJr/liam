@@ -25,17 +25,23 @@ One Liam run, started only inside an enforced nono session, leaves content-free 
 - ✓ Retry exactly once on hometown 5xx/timeout, then exit 21 (TC-FAIL-01, partial) — existing
 - ✓ Stubs behind the `stubs` cargo feature; static-CRT release build (REQ-LIAM-15, partial) — existing
 
+<!-- Validated in Phase 1: v0.4.1 Conformance (2026-10-21), against stubs. See RESULTS.md at Liam commit d573907. -->
+
+- ✓ D15 / REQ-LIAM-19: proposal forwarded to olive exactly as hometown returned it, with no coercion, defaulting, stripping or normalising — Phase 1
+- ✓ D16 / REQ-LIAM-20: hometown and olive exit reasons come from the `{"error": "<code>"}` body, falling back to status (exit 21/22 per §5.4/§7.4) — Phase 1
+- ✓ D17 / REQ-LIAM-21: `--question` outside 1..4000 chars → exit 11 `input:question_length` before any request — Phase 1
+- ✓ S-HT-1 and S-OL-1 stubs, contracts/ schemas and README updated to the v0.4.1 §5/§7 shapes (four-key proposal, new error codes, olive v1 responses) — Phase 1
+- ✓ Version labels move to 0.4.1 (Cargo.toml, liam.toml, evidence); profile version type/value reconciled with what Liam validates — Phase 1
+- ✓ TC-NET-03 static check automated (no `std::net`, `TcpStream`, `ToSocketAddrs`, second client, gateway refs outside stubs) — Phase 1
+- ✓ Every v0.4.1 TC Liam can satisfy locally is measured and recorded in RESULTS.md; canonical vocabulary `60a44f00…` pinned — Phase 1
+
 ### Active
 
-<!-- Milestone A: v0.4.1 conformance (local, stubs) -->
+<!-- Carried from Phase 1 -->
 
-- [ ] D15 / REQ-LIAM-19: proposal forwarded to olive exactly as hometown returned it, with no coercion, defaulting, stripping or normalising
-- [ ] D16 / REQ-LIAM-20: hometown and olive exit reasons come from the `{"error": "<code>"}` body, falling back to status (exit 21/22 per §5.4/§7.4)
-- [ ] D17 / REQ-LIAM-21: `--question` outside 1..4000 chars → exit 11 `input:question_length` before any request
-- [ ] S-HT-1 and S-OL-1 stubs, contracts/ schemas and README updated to the v0.4.1 §5/§7 shapes (four-key proposal, new error codes, olive v1 responses)
-- [ ] Version labels move to 0.4.1 (Cargo.toml, liam.toml, evidence); profile version type/value reconciled with what Liam validates
-- [ ] TC-NET-03 static check automated (no `std::net`, `TcpStream`, `ToSocketAddrs`, second client, gateway refs outside stubs)
-- [ ] Every v0.4.1 TC Liam can satisfy locally is measured and recorded in RESULTS.md
+- [ ] WR-05 / WR-06 (§4 record integrity: effective write access, DSSE envelope detection) — deferred to `NONO_v0.4.3` re-ratification
+- [ ] Phase 1 human-verification items open in `01-HUMAN-UAT.md` (TC-ACT-03 check order, A3 array shape, suggestion wording, closed-stdout policy)
+- [ ] Fresh-clone build: committed vendor/ blobs must match their cargo checksums so CI can build `--locked --offline`
 
 <!-- Milestone B: POC-2 end to end on this dev machine -->
 
@@ -108,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-21 after initialization*
+*Last updated: 2026-10-21 after Phase 1 (v0.4.1 Conformance)*
