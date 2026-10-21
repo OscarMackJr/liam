@@ -1,10 +1,10 @@
 # Liam Amendment v0.4.1 — Proxy Transport
 
 Version: 0.4.1
-Status: **Draft — for ratification.** Liam-only: amends `LIAM_DESIGN_SPEC_v0.4.md` §9, §10.2, §12 and `LIAM_TEST_SPEC_v0.4.md` §3.2. It does not touch design §4, so under the v0.4 change-control clause it needs no re-ratification of `NONO_v0.4.3`.
+Status: **Ratified 2026-10-20** (record below). **Folded into `LIAM_DESIGN_SPEC_v0.4.1.md` and `LIAM_TEST_SPEC_v0.4.1.md`**; this document remains the ratification record for D14. Liam-only: amends `LIAM_DESIGN_SPEC_v0.4.md` §9, §10.2, §12 and `LIAM_TEST_SPEC_v0.4.md` §3.2. It does not touch design §4, so under the v0.4 change-control clause it needs no re-ratification of `NONO_v0.4.3`.
 Repository: `liam/specs/`, beside the v0.4 specs.
 Audience: Liam implementer; nono owner (assumption A5).
-Primary post-read action: ratify before Gate 3 (real-session work).
+Primary post-read action: none. Ratified; implement and pass the local tests before any real-session claim.
 
 ---
 
