@@ -74,7 +74,11 @@ each is recorded here for user review and none is a confirmed upstream fact.
   **unverified until Phase 2** (nono contract diff).
 - D-03: `contracts/catalog-0.4.json` is a stub catalog shape carrying
   `parameters_schema` only (no `required_parameters`). The real olive catalog
-  shape is checked at the Phase 4 contract diff.
+  shape is checked at the Phase 4 contract diff. The validator supports
+  only `type`, `properties`, `required`, `additionalProperties` and
+  `maxLength`; a catalog with any other key, or whose `action_id_format` is
+  not `^[a-z0-9_.]+@[0-9]+$`, is refused as `olive:catalog` before hometown
+  is called (fail closed on contract drift).
 - D-04: deviation beyond design spec 7.3: a hometown proposal whose
   `party_ref` does not match the requested party is suppressed with reason
   `schema`. It is suppress-only (Liam never rewrites the proposal), so D15

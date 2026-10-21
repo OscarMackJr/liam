@@ -4,27 +4,40 @@
 //! "integer" means `Number::is_i64()` or `is_u64()`; this is stricter than
 //! JSON Schema 2020-12, where 5.0 is an integer. `maxLength` counts Unicode
 //! scalar values. An object schema with no `properties` accepts any nested
-//! content without recursing into it.
+//! content without recursing into it, unless `additionalProperties` is false,
+//! in which case it accepts only the empty object.
+//!
+//! Fail closed on drift: a catalog or schema keyword outside this subset is a
+//! parse error, so an unsupported catalog stops the run rather than having its
+//! constraints silently ignored.
 
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+/// The only `action_id_format` this validator implements (`action_id_format_ok`).
+pub const ACTION_ID_FORMAT: &str = "^[a-z0-9_.]+@[0-9]+$";
+
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Catalog {
     pub version: String,
+    #[serde(default)]
+    pub note: Option<String>,
     #[serde(default)]
     pub action_id_format: Option<String>,
     pub actions: Vec<CatalogAction>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CatalogAction {
     pub action_type: String,
     pub parameters_schema: Schema,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Schema {
     #[serde(rename = "type")]
     pub kind: String,
@@ -45,6 +58,10 @@ fn default_true() -> bool {
 impl Catalog {
     pub fn action(&self, id: &str) -> Option<&CatalogAction> {
         self.actions.iter().find(|a| a.action_type == id)
+    }
+    /// True only when the catalog declares the id format this code checks.
+    pub fn action_id_format_supported(&self) -> bool {
+        self.action_id_format.as_deref() == Some(ACTION_ID_FORMAT)
     }
 }
 
@@ -69,6 +86,9 @@ pub fn validate_parameters(schema: &Schema, value: &Value) -> Result<(), &'stati
                 return Err("schema");
             }
             let Some(props) = &schema.properties else {
+                if !schema.additional_properties && !obj.is_empty() {
+                    return Err("schema");
+                }
                 return Ok(());
             };
             for (key, val) in obj {
@@ -146,5 +166,49 @@ mod tests {
     #[test]
     fn unknown_action_is_none() {
         assert!(catalog().action("crm.nope@1").is_none());
+    }
+
+    #[test]
+    fn pinned_catalog_declares_the_supported_id_format() {
+        assert!(catalog().action_id_format_supported());
+        let other: Catalog =
+            serde_json::from_str(r#"{"version":"0.4","action_id_format":"^.+$","actions":[]}"#)
+                .unwrap();
+        assert!(!other.action_id_format_supported());
+        let missing: Catalog = serde_json::from_str(r#"{"version":"0.4","actions":[]}"#).unwrap();
+        assert!(!missing.action_id_format_supported());
+    }
+
+    #[test]
+    fn unsupported_keywords_fail_to_parse() {
+        for schema in [
+            r#"{"type":"string","enum":["a"]}"#,
+            r#"{"type":"string","pattern":"^a$"}"#,
+            r#"{"type":"integer","minimum":1}"#,
+            r#"{"type":"string","minLength":1}"#,
+            r#"{"type":"object","properties":{"x":{"type":"string","const":"a"}}}"#,
+        ] {
+            let text = format!(
+                r#"{{"version":"0.4","action_id_format":"{}","actions":[{{"action_type":"a.b@1","parameters_schema":{schema}}}]}}"#,
+                ACTION_ID_FORMAT
+            );
+            assert!(serde_json::from_str::<Catalog>(&text).is_err(), "{schema}");
+        }
+        for extra in [
+            r#"{"version":"0.4","actions":[],"extra":1}"#,
+            r#"{"version":"0.4","actions":[{"action_type":"a.b@1","parameters_schema":{"type":"object"},"x":1}]}"#,
+        ] {
+            assert!(serde_json::from_str::<Catalog>(extra).is_err(), "{extra}");
+        }
+    }
+
+    #[test]
+    fn closed_object_without_properties_accepts_only_empty() {
+        let schema: Schema =
+            serde_json::from_str(r#"{"type":"object","additionalProperties":false}"#).unwrap();
+        assert!(validate_parameters(&schema, &json!({})).is_ok());
+        assert!(validate_parameters(&schema, &json!({"a": 1})).is_err());
+        let open: Schema = serde_json::from_str(r#"{"type":"object"}"#).unwrap();
+        assert!(validate_parameters(&open, &json!({"a": 1})).is_ok());
     }
 }

@@ -74,7 +74,7 @@ pub fn run(
     session_id: &str,
 ) -> Result<TaskResult, TaskError> {
     let catalog: Catalog = serde_json::from_str(catalog_json).map_err(|_| TaskError::Catalog)?;
-    if catalog.version != catalog_version {
+    if catalog.version != catalog_version || !catalog.action_id_format_supported() {
         return Err(TaskError::Catalog);
     }
     let answer = hometown
@@ -296,6 +296,41 @@ mod tests {
         assert_eq!(o.bodies.borrow().len(), 1);
         assert_eq!(r.limit_suppressed, 1);
         assert!(r.proposal.is_some());
+    }
+
+    #[test]
+    fn unsupported_catalog_is_a_catalog_error_before_hometown() {
+        struct NoHometown;
+        impl HometownClient for NoHometown {
+            fn answer(&self, _: &AnswerRequest<'_>) -> Result<AnswerResponse, HometownError> {
+                panic!("hometown must not be called with an unsupported catalog");
+            }
+        }
+        let fmt = r#""action_id_format":"^[a-z0-9_.]+@[0-9]+$""#;
+        for catalog in [
+            // unsupported keyword
+            format!(
+                r#"{{"version":"0.4",{fmt},"actions":[{{"action_type":"crm.case_note@1","parameters_schema":{{"type":"object","properties":{{"note":{{"type":"string","enum":["a"]}}}}}}}}]}}"#
+            ),
+            // changed action_id_format
+            r#"{"version":"0.4","action_id_format":"^.+$","actions":[]}"#.to_owned(),
+            // missing action_id_format
+            r#"{"version":"0.4","actions":[]}"#.to_owned(),
+        ] {
+            let o = Olive::new(false);
+            let r = run(
+                &NoHometown,
+                &o,
+                &catalog,
+                "0.4",
+                "p",
+                "q",
+                "servicing",
+                RUN,
+                "session-1",
+            );
+            assert!(matches!(r, Err(TaskError::Catalog)), "{catalog}");
+        }
     }
 
     #[test]
