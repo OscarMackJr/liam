@@ -40,3 +40,16 @@ RESULTS.md now has one row per TC (docs-only commit `docs(01): record v0.4.1 con
 
 ## Self-Check: PASSED
 RESULTS.md committed alone; no `uncommitted`/`not recorded` strings remain; TC-ACT rows: 9.
+
+## Post-review re-measurement
+
+Re-ran the measurements after the code review fixes (01-REVIEW-FIX.md) at the last code commit `d573907` (`git log --stat`: 5f3b0c3 and a0f6702 are docs only), on the main checkout with a clean `git status`, Windows 10.0.26200.9711 (UBR 9711). Not a fresh clone: the vendor LF/CRLF checksum defect is still open and `vendor/` was not touched.
+
+- `cargo fmt --check`: clean.
+- `cargo clippy --locked --offline --all-targets -- -D warnings`, with and without `--all-features`: clean.
+- `cargo test --locked --offline --features stubs`: 166 passed, 0 failed, 2 ignored.
+- `cargo test --locked --offline --features stubs --no-fail-fast -- --ignored`: 2 passed, 0 failed (TC-FAIL-04 long 100.72 s; TC-NET-07 HKCU test, settings restored on Drop).
+- `cargo test --locked --offline` (default features): 56 passed, 0 failed.
+- `scripts/measure-build.ps1`: TC-BUILD-01 PASS, TC-BUILD-02 PASS (same DLL set).
+
+RESULTS.md (commit 7ae7135): all 58 measured rows now cite `d573907`. This includes TC-LVOC-01/02, which were at `f51c2fe`. Review-fix tests were added to the mappings: TC-NET-03 (redirect policy needle), TC-NET-04 4 of 4 (CR-01 redirect test), TC-ANS-05 6 of 6 (WR-07, CR-02 trace_id), TC-ACT-02 (WR-03 suggestion text), TC-ACT-03 (WR-01 note), TC-ACT-08 3 of 3 (CR-02 status and proposal_id), TC-EVD-01 4 of 4 (WR-02 events, schema enum and id pattern), TC-EVD-05 (WR-09 note) and TC-SEC-03 3 of 3 (WR-10). The WR-04/WR-08 startup tests pass but map to no TC row, which the Notes record. No status changed. The not-measured and deferred rows and the WR-05/WR-06 notes are unchanged.
