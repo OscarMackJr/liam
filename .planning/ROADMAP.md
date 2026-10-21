@@ -35,10 +35,10 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
 **Plans**: 12 plansPlans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — 0.4.1 labels, profile type, gitattributes, shared test helper
-- [ ] 01-02-PLAN.md — TC-NET-03 automated static scan
-- [ ] 01-03-PLAN.md — scripted stubs, routing proxy, gateway trap
-- [ ] 01-04-PLAN.md — catalog parameters_schema validator
+- [x] 01-01-PLAN.md — 0.4.1 labels, profile type, gitattributes, shared test helper
+- [x] 01-02-PLAN.md — TC-NET-03 automated static scan
+- [x] 01-03-PLAN.md — scripted stubs, routing proxy, gateway trap
+- [x] 01-04-PLAN.md — catalog parameters_schema validator
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. v0.4.1 Conformance | 0/TBD | Not started | - |
+| 1. v0.4.1 Conformance | 4/12 | In Progress|  |
 | 2. Real nono Session | 0/TBD | Not started | - |
 | 3. Live hometown and popeye | 0/TBD | Not started | - |
 | 4. Live olive | 0/TBD | Not started | - |
