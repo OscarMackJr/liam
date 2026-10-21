@@ -19,7 +19,7 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 - [x] **CONF-08**: A local gateway-trap harness covers TC-NET-04. A normal run makes zero hits on the trap. A run with the stub-only gateway-attempt flag is refused by the test proxy, and its failure is recorded content-free (REQ-LIAM-17)
 - [x] **CONF-09**: An answer carrying command text, extra keys or shell strings is parsed as data against S-HT-1. Extra keys are ignored and nothing is executed (REQ-LIAM-12; TC-SEC-03)
 - [x] **CONF-10**: RESULTS.md records a measurement (n of n, tag, Liam commit, limits) for every v0.4.1 TC that can run locally. TC-START-07 (DSSE) is marked deferred
-- [ ] **CONF-11**: `liam.toml` pins the canonical vocabulary SHA-256 (`60a44f00…`) of the vendored `vocabulary.yaml` instead of the placeholder, so TC-LVOC-01/02 pass against the canonical file (REQ-LIAM-06)
+- [x] **CONF-11**: `liam.toml` pins the canonical vocabulary SHA-256 (`60a44f00…`) of the vendored `vocabulary.yaml` instead of the placeholder, so TC-LVOC-01/02 pass against the canonical file (REQ-LIAM-06)
 
 ### Real nono Session (this dev machine)
 
@@ -79,7 +79,7 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 | CONF-08 | Phase 1 | Complete |
 | CONF-09 | Phase 1 | Complete |
 | CONF-10 | Phase 1 | Complete |
-| CONF-11 | Phase 1 | Pending |
+| CONF-11 | Phase 1 | Complete |
 | NONO-01 | Phase 2 | Pending |
 | NONO-02 | Phase 2 | Pending |
 | NONO-03 | Phase 2 | Pending |

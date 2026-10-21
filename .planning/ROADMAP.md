@@ -11,7 +11,7 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: v0.4.1 Conformance** - Code, stubs, contracts and RESULTS.md brought into line with the ratified v0.4.1 specs, verified locally
+- [x] **Phase 1: v0.4.1 Conformance** - Code, stubs, contracts and RESULTS.md brought into line with the ratified v0.4.1 specs, verified locally (completed 2026-10-21)
 - [ ] **Phase 2: Real nono Session** - nono contract-diff and O7 gates, then Liam passes the self-check and the refusal cases under the real nono fork
 - [ ] **Phase 3: Live hometown and popeye** - hometown contract-diff gate, then a live answer through nono-proxy that popeye attributes to the agent
 - [ ] **Phase 4: Live olive** - olive contract-diff gate, then a live proposal submission linked to hometown's trace
@@ -61,7 +61,7 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 01-12-PLAN.md — canonical vocabulary pin (blocked on user file)
+- [x] 01-12-PLAN.md — canonical vocabulary pin (blocked on user file)
 
 ### Phase 2: Real nono Session
 
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. v0.4.1 Conformance | 11/12 | In Progress|  |
+| 1. v0.4.1 Conformance | 12/12 | Complete   | 2026-10-21 |
 | 2. Real nono Session | 0/TBD | Not started | - |
 | 3. Live hometown and popeye | 0/TBD | Not started | - |
 | 4. Live olive | 0/TBD | Not started | - |

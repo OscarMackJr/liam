@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-21T20:55:15.195Z"
+last_updated: "2026-10-21T21:14:39.174Z"
 last_activity: 2026-10-21
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 12
-  completed_plans: 11
-  percent: 0
+  completed_plans: 12
+  percent: 20
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-10-21)
 ## Current Position
 
 Phase: 01 (v0-4-1-conformance) — EXECUTING
-Plan: 8 of 12
+Plan: 9 of 12
 Status: Ready to execute
 Last activity: 2026-10-21
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [█████████░] 92%
 | Phase 01 P09 | 25min | 2 tasks | 6 files |
 | Phase 01 P10 | 30min | 3 tasks | 3 files |
 | Phase 01 P11 | 15min | 2 tasks | 1 files |
+| Phase 01 P12 | 10min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,7 @@ Recent decisions affecting current work:
 - [Phase 01]: Only 403 purpose_refused maps to exit 20; other 403 exit 21. Layer entries serialized as {id,status} objects (spec 8.1)
 - [Phase 01]: 01-10: numeric key_id reports agent_record:parse vs spec key_id (defect, test ignored); TC-KEY-03 scanner has named exceptions
 - [Phase 01]: 01-11: RESULTS measured on main checkout at 05c83ef (clean status), not a fresh clone, due to known vendor CRLF defect
+- [Phase 01]: Vendored canonical vocabulary with contracts/vendored/** -text; pinned 60a44f00
 
 ### Pending Todos
 
@@ -95,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-10-21T20:55:15.180Z
+Last session: 2026-10-21T21:14:39.165Z
 Stopped at: Phase 1 context gathered
 Resume file: None
