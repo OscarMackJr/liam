@@ -597,3 +597,34 @@ fn hometown_trace_id_outside_the_id_pattern_is_unavailable_without_retry() {
         case.assert_content_free(&["trace 1", "\u{1b}"]);
     }
 }
+
+// ---- printed upstream text cannot drive the terminal (WR-10) ----
+
+#[test]
+fn control_characters_in_printed_upstream_text_become_replacement_characters() {
+    let body = serde_json::json!({
+        "trace_id": "trace-stub-1",
+        "answer": "clear\u{1b}[2Jscreen\rforged\tcol\nline two caf\u{e9}",
+        "context_complete": true,
+        "proposal": null
+    })
+    .to_string();
+    let hometown = ScriptedStub::new(vec![Reply::json(200, &body)]);
+    let olive = idle();
+    let case = run_case(&hometown, &olive, "question", 5);
+    assert_eq!(case.code(), 0, "stderr: {}", case.stderr());
+    assert_eq!(
+        case.stdout(),
+        "clear\u{FFFD}[2Jscreen\u{FFFD}forged\tcol\nline two caf\u{e9}\n"
+    );
+    assert!(!case.output.stdout.contains(&0x1b) && !case.output.stdout.contains(&b'\r'));
+}
+
+#[test]
+fn normal_answer_text_is_printed_unchanged() {
+    let hometown = ScriptedStub::new(vec![Reply::json(200, ANSWER)]);
+    let olive = idle();
+    let case = run_case(&hometown, &olive, "question", 5);
+    assert_eq!(case.code(), 0, "stderr: {}", case.stderr());
+    assert_eq!(case.stdout(), "stub answer\n");
+}

@@ -117,6 +117,14 @@ each is recorded here for user review and none is a confirmed upstream fact.
   not exercised locally and is left to the live phases.
 - Evidence note: `layers_outside_expectancy_scope` is written as a list of
   `{"id", "status"}` objects, as in design spec 8.1.
+- Console output: every line Liam prints to stdout (the answer, the
+  `Suggestion (not submitted): ...` line and olive's `Proposal <id>: <status>`
+  line) has control characters other than `\n` and `\t` replaced with
+  U+FFFD: C0 controls including ESC and `\r`, DEL, and C1 (U+0080..U+009F).
+  ANSI/OSC/CSI sequences therefore cannot move the cursor, erase the notice
+  line or fake a proposal line. Other text is printed unchanged, and the
+  evidence files are not affected (they are content-free). The stderr reason
+  line only ever carries guarded codes. Proposed as a spec line under §9.
 - Evidence location: `evidence.runs_dir` is resolved during the startup
   checks. If `%LOCALAPPDATA%` cannot be expanded (variable unset or empty),
   any other `%` placeholder remains, or the result is not an absolute path,

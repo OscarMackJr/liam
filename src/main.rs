@@ -8,6 +8,7 @@ use liam::{
         olive::{HttpOliveClient, OliveError},
     },
     config::{load, resolve_runs_dir, sha256_hex, validated_proxy},
+    console::printable,
     evidence::{Evidence, ProposalOutcome},
     receipt::{ensure_not_writable, validate_startup, StartupPolicy},
     task::{run, TaskError},
@@ -29,9 +30,11 @@ fn fail(code: i32, reason: &str) -> ! {
 /// Console output that never panics. A closed or broken stdout must not skip
 /// the run record or replace the documented exit code with a panic (§3.3
 /// steps 5-6, REQ-LIAM-13); the console is display only, so a failed write is
-/// dropped and the run continues to its evidence and exit code.
+/// dropped and the run continues to its evidence and exit code. Every line
+/// can carry upstream text, so control characters other than newline and tab
+/// are replaced with U+FFFD and cannot drive the terminal (WR-10).
 fn say(line: &str) {
-    let _ = writeln!(io::stdout().lock(), "{line}");
+    let _ = writeln!(io::stdout().lock(), "{}", printable(line));
 }
 fn now() -> u64 {
     SystemTime::now()

@@ -1,6 +1,7 @@
 pub mod catalog;
 pub mod clients;
 pub mod config;
+pub mod console;
 pub mod evidence;
 pub mod expectancy;
 pub mod receipt;
