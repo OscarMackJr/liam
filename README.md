@@ -131,6 +131,32 @@ each is recorded here for user review and none is a confirmed upstream fact.
   Liam exits `11 config:runs_dir` before any network request and writes no
   run record.
 
+## Known gaps (deferred to §4 re-ratification)
+
+Both items below are design spec §4.4 (record integrity, D10). Changes to §4
+need re-ratification with `NONO_v0.4.3`, so the code is deliberately
+unchanged until then (user decision, code review 01 iteration 2).
+
+- WR-05, effective write access (ties to `NONO_v0.4.3` O3, receipt directory
+  and ACL): `ensure_not_writable` (`src/receipt.rs`) opens each record with
+  `write(true)` and treats `PermissionDenied` as "not writable". On Windows
+  that open is also denied when `FILE_ATTRIBUTE_READONLY` is set, even if the
+  DACL grants Liam's token full control. A file Liam could rewrite (by
+  clearing the attribute with `FILE_WRITE_ATTRIBUTES`, or through `WRITE_DAC`
+  / `WRITE_OWNER`) therefore passes. The stub fixtures (`src/stubs.rs`,
+  `scripts/make-stub-records.ps1`) protect the records with the read-only
+  attribute, not a deny-write DACL, so the tests cannot tell a
+  supervisor-owned ACL apart from a user-writable file with the read-only
+  flag. Open question for O3: whether "writable by its own token" includes
+  `FILE_WRITE_ATTRIBUTES`, `WRITE_DAC` and `WRITE_OWNER`, and whether the
+  fixtures move to deny-write DACLs.
+- WR-06, DSSE envelope not detected (ties to `NONO_v0.4.3` O2): Liam never
+  looks for `<session_id>.agent.dsse.json` next to the agent record. An
+  existing envelope, valid or not, is ignored and every run records
+  `receipt_integrity: "acl-only"`; a present but invalid envelope does not
+  fail with `receipt:signature` as §4.4 requires. Only a non-empty
+  `nono.record_public_key` is refused (`10 receipt:signature`).
+
 ## Exit codes and reasons
 
 Each failure prints exactly one line, `liam: <code> <reason>`, on stderr.
