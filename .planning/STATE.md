@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-21T19:32:23.535Z"
+last_updated: "2026-10-21T19:36:46.372Z"
 last_activity: 2026-10-21
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-10-21)
 ## Current Position
 
 Phase: 01 (v0-4-1-conformance) — EXECUTING
-Plan: 4 of 12
+Plan: 5 of 12
 Status: Ready to execute
 Last activity: 2026-10-21
 
-Progress: [██████░░░░] 58%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [██████░░░░] 58%
 *Updated after each plan completion*
 | Phase 01 P06 | 20min | 2 tasks | 3 files |
 | Phase 01 P07 | 25min | 1 tasks | 1 files |
+| Phase 01 P08 | 30min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Recent decisions affecting current work:
 - [Roadmap]: DSSE (TC-START-07) remains deferred (DEF-01); Phase 1 records it as deferred in RESULTS.md
 - [Phase 01]: 01-06: hometown retry via RetryOnce adapter; gateway event name const in stubs.rs
 - [Phase 01]: 01-07: long TC-FAIL-04 asserts Liam output only; TestProxy 30s forward timeout limits real 90s coverage
+- [Phase 01]: 01-08: JCS test digits via std {:e}; bad-id proposals report not_in_catalog since catalog lookup precedes format check
 
 ### Pending Todos
 
@@ -86,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-10-21T19:32:12.219Z
+Last session: 2026-10-21T19:36:46.351Z
 Stopped at: Phase 1 context gathered
 Resume file: None
