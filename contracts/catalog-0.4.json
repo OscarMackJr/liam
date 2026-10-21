@@ -2,8 +2,8 @@
   "version": "0.4",
   "action_id_format": "^[a-z0-9_.]+@[0-9]+$",
   "actions": [
-    {"action_type": "crm.case_note@1", "required_parameters": ["note"], "parameters_schema": {"type": "object", "properties": {"note": {"type": "string", "maxLength": 2000}}, "required": ["note"], "additionalProperties": false}},
-    {"action_type": "crm.follow_up@1", "required_parameters": ["days"], "parameters_schema": {"type": "object", "properties": {"days": {"type": "integer"}}, "required": ["days"], "additionalProperties": false}},
-    {"action_type": "crm.case_update@1", "required_parameters": ["details"], "parameters_schema": {"type": "object", "properties": {"details": {"type": "object"}}, "required": ["details"], "additionalProperties": false}}
+    {"action_type": "crm.case_note@1", "parameters_schema": {"type": "object", "properties": {"note": {"type": "string", "maxLength": 2000}}, "required": ["note"], "additionalProperties": false}},
+    {"action_type": "crm.follow_up@1", "parameters_schema": {"type": "object", "properties": {"days": {"type": "integer"}}, "required": ["days"], "additionalProperties": false}},
+    {"action_type": "crm.case_update@1", "parameters_schema": {"type": "object", "properties": {"details": {"type": "object"}}, "required": ["details"], "additionalProperties": false}}
   ]
 }

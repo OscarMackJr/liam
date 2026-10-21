@@ -2,7 +2,7 @@ use liam::{
     clients::{
         build_proxy_client,
         hometown::{HometownError, HttpHometownClient},
-        olive::HttpOliveClient,
+        olive::{HttpOliveClient, OliveError},
     },
     config::{expand_local_app_data, load, sha256_hex, validated_proxy},
     evidence::Evidence,
@@ -215,66 +215,51 @@ fn main() {
                 fail(30, "evidence:write");
             }
         }
-        Err(TaskError::Hometown(HometownError::PurposeRefused)) => finish_failure(
-            &mut evidence,
-            &session,
-            &config,
-            &purpose,
-            &party_ref,
-            "purpose_refused",
-            20,
-            "hometown:purpose_refused",
-        ),
-        Err(TaskError::Hometown(HometownError::NoInjectedKey)) => finish_failure(
-            &mut evidence,
-            &session,
-            &config,
-            &purpose,
-            &party_ref,
-            "hometown_no_injected_key",
-            21,
-            "hometown:no_injected_key",
-        ),
-        Err(TaskError::Hometown(HometownError::KeyInactive)) => finish_failure(
-            &mut evidence,
-            &session,
-            &config,
-            &purpose,
-            &party_ref,
-            "hometown_key_inactive",
-            21,
-            "hometown:key_inactive",
-        ),
-        Err(TaskError::Hometown(HometownError::Status(status))) => finish_failure(
-            &mut evidence,
-            &session,
-            &config,
-            &purpose,
-            &party_ref,
-            "hometown_failed",
-            21,
-            &format!("hometown:{status}"),
-        ),
-        Err(TaskError::Hometown(_)) => finish_failure(
-            &mut evidence,
-            &session,
-            &config,
-            &purpose,
-            &party_ref,
-            "hometown_unavailable",
-            21,
-            "hometown:unavailable",
-        ),
-        Err(TaskError::Olive(_)) => finish_failure(
-            &mut evidence,
-            &session,
-            &config,
-            &purpose,
-            &party_ref,
-            "olive_failed",
-            22,
-            "olive:unavailable",
-        ),
+        Err(TaskError::Hometown(error)) => {
+            let (code, reason) = match &error {
+                HometownError::PurposeRefused(reason) => (20, reason.clone()),
+                HometownError::Rejected { reason, .. } => (21, reason.clone()),
+                HometownError::Unavailable | HometownError::InvalidResponse => {
+                    (21, "hometown:unavailable".to_string())
+                }
+            };
+            finish_failure(
+                &mut evidence,
+                &session,
+                &config,
+                &purpose,
+                &party_ref,
+                error.outcome(),
+                code,
+                &reason,
+            )
+        }
+        Err(TaskError::Catalog) => fail(22, "olive:catalog"),
+        Err(TaskError::Olive {
+            answer,
+            context_complete,
+            error,
+            ..
+        }) => {
+            if !context_complete {
+                println!("Notice: answer may be incomplete.");
+            }
+            println!("{answer}");
+            let reason = match error {
+                OliveError::Rejected { reason, .. } => reason,
+                _ => "olive:unavailable".to_string(),
+            };
+            finish_failure(
+                &mut evidence,
+                &session,
+                &config,
+                &purpose,
+                &party_ref,
+                "olive_failed",
+                22,
+                &reason,
+            )
+        }
     }
 }
 #[allow(clippy::too_many_arguments)]

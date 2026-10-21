@@ -1,11 +1,34 @@
 #![cfg(feature = "stubs")]
 
 use liam::clients::build_proxy_client;
-use liam::clients::hometown::Proposal;
 use liam::clients::hometown::{AnswerRequest, HometownClient, HometownError, HttpHometownClient};
 use liam::clients::olive::{HttpOliveClient, OliveClient, OliveError, ProposalRequest};
 use liam::stubs::{CaptureProxy, HometownStub, OliveStub};
-use serde_json::json;
+use serde_json::value::RawValue;
+
+struct RawFields {
+    action_type: Box<RawValue>,
+    party_ref: Box<RawValue>,
+    parameters: Box<RawValue>,
+    justification: Box<RawValue>,
+}
+impl RawFields {
+    fn new() -> Self {
+        let raw = |s: &str| RawValue::from_string(s.to_string()).unwrap();
+        Self {
+            action_type: raw(r#""crm.case_note@1""#),
+            party_ref: raw(r#""opaque-party""#),
+            parameters: raw(r#"{ "note":"x" }"#),
+            justification: raw(r#""display only""#),
+        }
+    }
+}
+fn rejected(status: u16, reason: &str) -> HometownError {
+    HometownError::Rejected {
+        status,
+        reason: reason.into(),
+    }
+}
 
 #[cfg(windows)]
 #[test]
@@ -217,16 +240,14 @@ fn olive_request_has_no_authorization_before_proxy_injection() {
         olive.base_url(),
         2,
     );
-    let proposal = Proposal {
-        action_type: "crm.case_note@1".into(),
-        party_ref: "opaque-party".into(),
-        parameters: json!({"note":"x"}),
-        justification: "display only".into(),
-    };
+    let fields = RawFields::new();
 
     let response = client
         .submit(&ProposalRequest {
-            proposal: &proposal,
+            action_type: &fields.action_type,
+            party_ref: &fields.party_ref,
+            parameters: &fields.parameters,
+            justification: &fields.justification,
             run_id: "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
             trace_ref: "trace-1",
         })
@@ -234,7 +255,12 @@ fn olive_request_has_no_authorization_before_proxy_injection() {
 
     assert_eq!(response.status, "awaiting_approval");
     assert!(!proxy.captured().has_authorization);
-    assert!(olive.captured().body.contains("trace_ref"));
+    let body = olive.captured().body;
+    assert!(body.contains("trace_ref"));
+    assert!(
+        body.contains(r#"{ "note":"x" }"#),
+        "raw bytes forwarded verbatim"
+    );
     assert_eq!(
         olive.captured().authorization.as_deref(),
         Some("Bearer proxy-sentinel")
@@ -264,14 +290,22 @@ fn hometown_server_error_is_classified_as_retryable_unavailability() {
 #[test]
 fn hometown_terminal_statuses_have_the_documented_classification() {
     for (status, body, expected) in [
-        (401, "{}", HometownError::NoInjectedKey),
+        (401, "{}", rejected(401, "hometown:401")),
         (
             401,
-            r#"{"code":"key_inactive"}"#,
-            HometownError::KeyInactive,
+            r#"{"error":"key_inactive"}"#,
+            rejected(401, "hometown:key_inactive"),
         ),
-        (403, "{}", HometownError::PurposeRefused),
-        (429, "{}", HometownError::Status(429)),
+        (
+            403,
+            r#"{"error":"purpose_refused"}"#,
+            HometownError::PurposeRefused("hometown:purpose_refused".into()),
+        ),
+        (
+            429,
+            r#"{"error":"rate_limited"}"#,
+            rejected(429, "hometown:rate_limited"),
+        ),
     ] {
         let hometown = HometownStub::status(status, body);
         let proxy = CaptureProxy::forward_once_to(hometown.base_url());
@@ -294,12 +328,7 @@ fn hometown_terminal_statuses_have_the_documented_classification() {
 
 #[test]
 fn olive_refusal_and_failures_preserve_status_boundaries() {
-    let proposal = Proposal {
-        action_type: "crm.case_note@1".into(),
-        party_ref: "opaque-party".into(),
-        parameters: json!({"note":"x"}),
-        justification: "display only".into(),
-    };
+    let fields = RawFields::new();
     let refused = OliveStub::status(
         200,
         r#"{"proposal_id":"p-1","status":"refused_policy","reason":"policy"}"#,
@@ -313,7 +342,10 @@ fn olive_refusal_and_failures_preserve_status_boundaries() {
     assert_eq!(
         client
             .submit(&ProposalRequest {
-                proposal: &proposal,
+                action_type: &fields.action_type,
+                party_ref: &fields.party_ref,
+                parameters: &fields.parameters,
+                justification: &fields.justification,
                 run_id: "run",
                 trace_ref: "trace"
             })
@@ -332,12 +364,22 @@ fn olive_refusal_and_failures_preserve_status_boundaries() {
         assert_eq!(
             client
                 .submit(&ProposalRequest {
-                    proposal: &proposal,
+                    action_type: &fields.action_type,
+                    party_ref: &fields.party_ref,
+                    parameters: &fields.parameters,
+                    justification: &fields.justification,
                     run_id: "run",
                     trace_ref: "trace"
                 })
                 .unwrap_err(),
-            OliveError::Status(status)
+            if status == 400 {
+                OliveError::Rejected {
+                    status,
+                    reason: "olive:400".into(),
+                }
+            } else {
+                OliveError::Unavailable
+            }
         );
     }
 }
