@@ -550,3 +550,620 @@ impl OliveStub {
         self.capture.lock().expect("capture lock").clone()
     }
 }
+
+// ---------------------------------------------------------------------------
+// Data-driven stubs, routing proxy and gateway trap (CONF-05, CONF-08).
+// No expect/unwrap inside spawned threads: failures are recorded and asserted.
+// ---------------------------------------------------------------------------
+
+use std::{
+    io::{Read, Write},
+    net::{SocketAddr, TcpListener},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+};
+
+const POLL: Duration = Duration::from_millis(25);
+const GATEWAY_HOST: &str = "gateway.invalid";
+
+fn locked<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+#[derive(Clone, Debug)]
+pub struct Reply {
+    status: u16,
+    body: String,
+    delay: Option<Duration>,
+}
+impl Reply {
+    pub fn json(status: u16, body: &str) -> Self {
+        Self {
+            status,
+            body: body.to_owned(),
+            delay: None,
+        }
+    }
+    pub fn empty(status: u16) -> Self {
+        Self {
+            status,
+            body: String::new(),
+            delay: None,
+        }
+    }
+    pub fn delayed(mut self, delay: Duration) -> Self {
+        self.delay = Some(delay);
+        self
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct CapturedRequest {
+    pub method: String,
+    pub path: String,
+    pub header_names: Vec<String>,
+    pub authorization_present: bool,
+    pub body: String,
+}
+
+pub struct ScriptedStub {
+    base_url: String,
+    captured: Arc<Mutex<Vec<CapturedRequest>>>,
+    stop: Arc<AtomicBool>,
+    worker: Option<thread::JoinHandle<()>>,
+}
+impl ScriptedStub {
+    pub fn new(replies: Vec<Reply>) -> Self {
+        let (server, base_url) = match Server::http("127.0.0.1:0") {
+            Ok(server) => {
+                let url = server
+                    .server_addr()
+                    .to_ip()
+                    .map(|addr| format!("http://{addr}"))
+                    .unwrap_or_default();
+                (Some(server), url)
+            }
+            Err(_) => (None, String::new()),
+        };
+        let captured = Arc::new(Mutex::new(Vec::new()));
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_captured = Arc::clone(&captured);
+        let thread_stop = Arc::clone(&stop);
+        let worker = thread::spawn(move || {
+            let Some(server) = server else { return };
+            let mut index = 0usize;
+            while !thread_stop.load(Ordering::Relaxed) {
+                let mut request = match server.recv_timeout(POLL) {
+                    Ok(Some(request)) => request,
+                    Ok(None) => continue,
+                    Err(_) => return,
+                };
+                let mut body = String::new();
+                let _ = request.as_reader().read_to_string(&mut body);
+                locked(&thread_captured).push(CapturedRequest {
+                    method: request.method().as_str().to_owned(),
+                    path: request.url().to_owned(),
+                    header_names: request
+                        .headers()
+                        .iter()
+                        .map(|h| h.field.as_str().as_str().to_owned())
+                        .collect(),
+                    authorization_present: request
+                        .headers()
+                        .iter()
+                        .any(|h| h.field.equiv("Authorization")),
+                    body,
+                });
+                let reply = replies
+                    .get(index)
+                    .or_else(|| replies.last())
+                    .cloned()
+                    .unwrap_or_else(|| Reply::empty(500));
+                index += 1;
+                if let Some(delay) = reply.delay {
+                    thread::sleep(delay);
+                }
+                let mut response = Response::from_string(reply.body).with_status_code(reply.status);
+                if let Ok(header) =
+                    tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
+                {
+                    response = response.with_header(header);
+                }
+                let _ = request.respond(response);
+            }
+        });
+        Self {
+            base_url,
+            captured,
+            stop,
+            worker: Some(worker),
+        }
+    }
+    pub fn error(status: u16, code: &str) -> Self {
+        let body = serde_json::json!({ "error": code }).to_string();
+        Self::new(vec![Reply::json(status, &body)])
+    }
+    pub fn answer_with(proposal_json: &str) -> Self {
+        let body = format!(
+            r#"{{"trace_id":"trace-stub-1","answer":"stub answer","context_complete":true,"proposal":{proposal_json}}}"#
+        );
+        Self::new(vec![Reply::json(200, &body)])
+    }
+    pub fn olive_ok(
+        status: u16,
+        proposal_id: &str,
+        olive_status: &str,
+        reason: Option<&str>,
+    ) -> Self {
+        let mut value = serde_json::json!({"proposal_id": proposal_id, "status": olive_status});
+        if let (Some(reason), Some(map)) = (reason, value.as_object_mut()) {
+            map.insert("reason".to_owned(), serde_json::Value::from(reason));
+        }
+        Self::new(vec![Reply::json(status, &value.to_string())])
+    }
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+    pub fn requests(&self) -> Vec<CapturedRequest> {
+        locked(&self.captured).clone()
+    }
+    pub fn count(&self) -> usize {
+        locked(&self.captured).len()
+    }
+}
+impl Drop for ScriptedStub {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ProxyStats {
+    pub hometown_hits: usize,
+    pub olive_hits: usize,
+    pub gateway_attempts: usize,
+    pub refused_count: usize,
+    pub inbound_authorization_count: usize,
+}
+
+struct ProxyShared {
+    hometown: String,
+    olive: String,
+    refuse: Vec<String>,
+    trap: Option<SocketAddr>,
+    stats: Mutex<ProxyStats>,
+    errors: Mutex<Vec<String>>,
+}
+
+pub struct TestProxy {
+    url: String,
+    port: u16,
+    shared: Arc<ProxyShared>,
+    stop: Arc<AtomicBool>,
+    worker: Option<thread::JoinHandle<()>>,
+}
+
+fn authority_of(base: &str) -> String {
+    base.trim_start_matches("http://")
+        .trim_end_matches('/')
+        .split('/')
+        .next()
+        .unwrap_or_default()
+        .to_owned()
+}
+
+/// Split a request target into (authority, path). Absolute-form targets carry
+/// the authority; origin-form targets fall back to the Host header.
+fn split_target(url: &str, host_header: Option<&str>) -> (String, String) {
+    if let Some(rest) = url.strip_prefix("http://") {
+        return match rest.find('/') {
+            Some(i) => (rest[..i].to_owned(), rest[i..].to_owned()),
+            None => (rest.to_owned(), "/".to_owned()),
+        };
+    }
+    (host_header.unwrap_or_default().to_owned(), url.to_owned())
+}
+
+fn handle_proxy_request(shared: &ProxyShared, mut request: tiny_http::Request) {
+    let host_header = request
+        .headers()
+        .iter()
+        .find(|h| h.field.equiv("Host"))
+        .map(|h| h.value.as_str().to_owned());
+    let (authority, path) = split_target(request.url(), host_header.as_deref());
+    let host = authority.split(':').next().unwrap_or_default().to_owned();
+    let inbound_auth = request
+        .headers()
+        .iter()
+        .any(|h| h.field.equiv("Authorization"));
+    let content_type = request
+        .headers()
+        .iter()
+        .find(|h| h.field.equiv("Content-Type"))
+        .map(|h| h.value.as_str().to_owned());
+    let mut body = Vec::new();
+    let _ = request.as_reader().read_to_end(&mut body);
+    let method = request.method().as_str().to_owned();
+
+    let (target, inject) = if shared.refuse.contains(&host) {
+        let mut stats = locked(&shared.stats);
+        stats.gateway_attempts += 1;
+        if inbound_auth {
+            stats.inbound_authorization_count += 1;
+        }
+        match shared.trap {
+            Some(trap) => {
+                drop(stats);
+                (format!("http://{trap}{path}"), false)
+            }
+            None => {
+                stats.refused_count += 1;
+                drop(stats);
+                let _ = request.respond(Response::empty(403));
+                return;
+            }
+        }
+    } else if authority == shared.hometown || authority == shared.olive {
+        let mut stats = locked(&shared.stats);
+        if authority == shared.hometown {
+            stats.hometown_hits += 1;
+        } else {
+            stats.olive_hits += 1;
+        }
+        if inbound_auth {
+            stats.inbound_authorization_count += 1;
+        }
+        drop(stats);
+        (format!("http://{authority}{path}"), true)
+    } else {
+        locked(&shared.errors).push("unroutable authority".to_owned());
+        let _ = request.respond(Response::empty(502));
+        return;
+    };
+
+    let forwarded = (|| -> Result<(u16, Vec<u8>), String> {
+        let client = reqwest::blocking::Client::builder()
+            .no_proxy()
+            .build()
+            .map_err(|_| "forward client build".to_owned())?;
+        let method = reqwest::Method::from_bytes(method.as_bytes())
+            .map_err(|_| "forward method".to_owned())?;
+        let mut builder = client.request(method, target);
+        if let Some(content_type) = content_type {
+            builder = builder.header("Content-Type", content_type);
+        }
+        if inject {
+            builder = builder.header("Authorization", "Bearer proxy-sentinel");
+        }
+        let response = builder
+            .body(body)
+            .send()
+            .map_err(|_| "forward send".to_owned())?;
+        let status = response.status().as_u16();
+        let bytes = response
+            .bytes()
+            .map_err(|_| "forward read".to_owned())?
+            .to_vec();
+        Ok((status, bytes))
+    })();
+    match forwarded {
+        Ok((status, bytes)) => {
+            let _ = request.respond(Response::from_data(bytes).with_status_code(status));
+        }
+        Err(reason) => {
+            locked(&shared.errors).push(reason);
+            let _ = request.respond(Response::empty(502));
+        }
+    }
+}
+
+impl TestProxy {
+    pub fn new(hometown_base: &str, olive_base: &str) -> Self {
+        Self::start(hometown_base, olive_base, None)
+    }
+    /// Negative-control mode: `gateway.invalid` is forwarded to the trap.
+    pub fn with_gateway_trap(hometown_base: &str, olive_base: &str, trap: SocketAddr) -> Self {
+        Self::start(hometown_base, olive_base, Some(trap))
+    }
+    fn start(hometown_base: &str, olive_base: &str, trap: Option<SocketAddr>) -> Self {
+        let shared = Arc::new(ProxyShared {
+            hometown: authority_of(hometown_base),
+            olive: authority_of(olive_base),
+            refuse: vec![GATEWAY_HOST.to_owned()],
+            trap,
+            stats: Mutex::new(ProxyStats::default()),
+            errors: Mutex::new(Vec::new()),
+        });
+        let stop = Arc::new(AtomicBool::new(false));
+        let server = Server::http("127.0.0.1:0").ok();
+        let (url, port) = server
+            .as_ref()
+            .and_then(|s| s.server_addr().to_ip())
+            .map(|addr| (format!("http://{addr}"), addr.port()))
+            .unwrap_or_default();
+        let thread_shared = Arc::clone(&shared);
+        let thread_stop = Arc::clone(&stop);
+        let worker = thread::spawn(move || {
+            let Some(server) = server else { return };
+            let mut handlers: Vec<thread::JoinHandle<()>> = Vec::new();
+            while !thread_stop.load(Ordering::Relaxed) {
+                match server.recv_timeout(POLL) {
+                    Ok(Some(request)) => {
+                        let shared = Arc::clone(&thread_shared);
+                        handlers.push(thread::spawn(move || {
+                            handle_proxy_request(&shared, request)
+                        }));
+                    }
+                    Ok(None) => {}
+                    Err(_) => break,
+                }
+            }
+            for handler in handlers {
+                let _ = handler.join();
+            }
+        });
+        Self {
+            url,
+            port,
+            shared,
+            stop,
+            worker: Some(worker),
+        }
+    }
+    pub fn url(&self) -> &str {
+        &self.url
+    }
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+    pub fn stats(&self) -> ProxyStats {
+        locked(&self.shared.stats).clone()
+    }
+    pub fn errors(&self) -> Vec<String> {
+        locked(&self.shared.errors).clone()
+    }
+}
+impl Drop for TestProxy {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
+/// Raw TCP listener that counts connections; any HTTP request gets a 200 so a
+/// negative-control hit is visible.
+pub struct GatewayTrap {
+    addr: SocketAddr,
+    hits: Arc<AtomicUsize>,
+    stop: Arc<AtomicBool>,
+    worker: Option<thread::JoinHandle<()>>,
+}
+impl GatewayTrap {
+    pub fn new() -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").ok();
+        let addr = listener
+            .as_ref()
+            .and_then(|l| l.local_addr().ok())
+            .unwrap_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)));
+        let hits = Arc::new(AtomicUsize::new(0));
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_hits = Arc::clone(&hits);
+        let thread_stop = Arc::clone(&stop);
+        let worker = thread::spawn(move || {
+            let Some(listener) = listener else { return };
+            if listener.set_nonblocking(true).is_err() {
+                return;
+            }
+            while !thread_stop.load(Ordering::Relaxed) {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        thread_hits.fetch_add(1, Ordering::Relaxed);
+                        let _ = stream.set_nonblocking(false);
+                        let _ = stream.set_read_timeout(Some(Duration::from_millis(200)));
+                        let mut buffer = [0u8; 4096];
+                        let _ = stream.read(&mut buffer);
+                        let _ = stream.write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        );
+                    }
+                    Err(_) => thread::sleep(POLL),
+                }
+            }
+        });
+        Self {
+            addr,
+            hits,
+            stop,
+            worker: Some(worker),
+        }
+    }
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+    pub fn hits(&self) -> usize {
+        self.hits.load(Ordering::Relaxed)
+    }
+}
+impl Default for GatewayTrap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl Drop for GatewayTrap {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
+/// Send one plain-http request to the gateway host through the supplied
+/// (proxy-forced) client. "refused" on any non-2xx or transport error.
+pub fn gateway_attempt(client: &reqwest::blocking::Client) -> &'static str {
+    match client.get(format!("http://{GATEWAY_HOST}/")).send() {
+        Ok(response) if response.status().is_success() => "allowed",
+        _ => "refused",
+    }
+}
+
+pub fn gateway_attempt_requested() -> bool {
+    std::env::var("LIAM_STUB_GATEWAY_ATTEMPT").is_ok_and(|v| v == "1")
+}
+
+#[cfg(test)]
+mod scripted_tests {
+    use super::*;
+    use std::time::Instant;
+
+    fn proxied(proxy_url: &str) -> reqwest::blocking::Client {
+        reqwest::blocking::Client::builder()
+            .no_proxy()
+            .proxy(reqwest::Proxy::all(proxy_url).expect("proxy url"))
+            .timeout(Duration::from_secs(10))
+            .build()
+            .expect("client")
+    }
+
+    #[test]
+    fn scripted_replies_are_ordered_and_last_repeats() {
+        let stub = ScriptedStub::new(vec![Reply::empty(503), Reply::json(200, r#"{"a":1}"#)]);
+        let client = reqwest::blocking::Client::new();
+        let codes: Vec<u16> = (0..3)
+            .map(|_| {
+                client
+                    .post(format!("{}/x", stub.base_url()))
+                    .body("hi")
+                    .send()
+                    .expect("send")
+                    .status()
+                    .as_u16()
+            })
+            .collect();
+        assert_eq!(codes, vec![503, 200, 200]);
+        let seen = stub.requests();
+        assert_eq!(stub.count(), 3);
+        assert_eq!(seen[0].path, "/x");
+        assert_eq!(seen[0].body, "hi");
+        assert!(!seen[0].authorization_present);
+    }
+
+    #[test]
+    fn scripted_reply_can_be_delayed() {
+        let stub = ScriptedStub::new(vec![Reply::empty(200).delayed(Duration::from_millis(300))]);
+        let started = Instant::now();
+        reqwest::blocking::get(stub.base_url()).expect("get");
+        assert!(started.elapsed() >= Duration::from_millis(300));
+    }
+
+    #[test]
+    fn error_helper_uses_error_key() {
+        let stub = ScriptedStub::error(409, "conflict");
+        let text = reqwest::blocking::get(stub.base_url())
+            .expect("get")
+            .text()
+            .expect("text");
+        let value: serde_json::Value = serde_json::from_str(&text).expect("json");
+        assert_eq!(value["error"], "conflict");
+        assert!(value.get("code").is_none());
+    }
+
+    #[test]
+    fn answer_and_olive_helpers_embed_payloads() {
+        let stub = ScriptedStub::answer_with(r#"{"action_type":"x"}"#);
+        let value: serde_json::Value = reqwest::blocking::get(stub.base_url())
+            .expect("get")
+            .json()
+            .expect("json");
+        assert_eq!(value["proposal"]["action_type"], "x");
+        let olive = ScriptedStub::olive_ok(202, "p-1", "awaiting_approval", Some("r"));
+        let value: serde_json::Value = reqwest::blocking::get(olive.base_url())
+            .expect("get")
+            .json()
+            .expect("json");
+        assert_eq!(value["proposal_id"], "p-1");
+        assert_eq!(value["reason"], "r");
+    }
+
+    #[test]
+    fn proxy_routes_injects_and_counts() {
+        let hometown = ScriptedStub::new(vec![Reply::json(200, "{}")]);
+        let olive = ScriptedStub::new(vec![Reply::json(202, "{}")]);
+        let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
+        let client = proxied(proxy.url());
+        let r1 = client
+            .post(format!("{}/v1/agent/answer", hometown.base_url()))
+            .header("Authorization", "Bearer inbound-check")
+            .body("{}")
+            .send()
+            .expect("hometown");
+        assert_eq!(r1.status().as_u16(), 200);
+        let r2 = client
+            .post(format!("{}/v1/proposals", olive.base_url()))
+            .body("{}")
+            .send()
+            .expect("olive");
+        assert_eq!(r2.status().as_u16(), 202);
+        let stats = proxy.stats();
+        assert_eq!(stats.hometown_hits, 1);
+        assert_eq!(stats.olive_hits, 1);
+        assert_eq!(stats.inbound_authorization_count, 1);
+        assert_eq!(stats.gateway_attempts, 0);
+        assert!(hometown.requests()[0].authorization_present);
+        assert_eq!(hometown.requests()[0].path, "/v1/agent/answer");
+        assert!(olive.requests()[0].authorization_present);
+        assert!(proxy.errors().is_empty());
+    }
+
+    #[test]
+    fn stub_thread_ends_after_drop() {
+        let started = Instant::now();
+        drop(ScriptedStub::new(vec![Reply::empty(200)]));
+        let hometown = ScriptedStub::new(vec![Reply::empty(200)]);
+        drop(TestProxy::new(hometown.base_url(), hometown.base_url()));
+        drop(GatewayTrap::new());
+        assert!(started.elapsed() < Duration::from_secs(5));
+    }
+
+    #[test]
+    fn gateway_attempt_is_refused_and_trap_untouched() {
+        let hometown = ScriptedStub::new(vec![Reply::empty(200)]);
+        let olive = ScriptedStub::new(vec![Reply::empty(200)]);
+        let trap = GatewayTrap::new();
+        let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
+        let pc = crate::clients::build_proxy_client(proxy.url()).expect("proxy client");
+        assert_eq!(gateway_attempt(&pc.client()), "refused");
+        let stats = proxy.stats();
+        assert_eq!(stats.gateway_attempts, 1);
+        assert_eq!(stats.refused_count, 1);
+        assert_eq!(trap.hits(), 0);
+        assert_eq!(pc.resolver_calls(), 0);
+    }
+
+    #[test]
+    fn gateway_negative_control_fires_the_trap() {
+        let hometown = ScriptedStub::new(vec![Reply::empty(200)]);
+        let olive = ScriptedStub::new(vec![Reply::empty(200)]);
+        let trap = GatewayTrap::new();
+        let proxy =
+            TestProxy::with_gateway_trap(hometown.base_url(), olive.base_url(), trap.addr());
+        let pc = crate::clients::build_proxy_client(proxy.url()).expect("proxy client");
+        assert_eq!(gateway_attempt(&pc.client()), "allowed");
+        assert_eq!(trap.hits(), 1);
+        assert_eq!(proxy.stats().gateway_attempts, 1);
+        assert_eq!(proxy.stats().refused_count, 0);
+    }
+
+    #[test]
+    fn gateway_attempt_not_requested_when_unset() {
+        if std::env::var_os("LIAM_STUB_GATEWAY_ATTEMPT").is_none() {
+            assert!(!gateway_attempt_requested());
+        }
+    }
+}
