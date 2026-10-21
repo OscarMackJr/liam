@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-21T19:41:18.473Z"
+last_updated: "2026-10-21T20:38:27.697Z"
 last_activity: 2026-10-21
 progress:
   total_phases: 5
@@ -70,6 +70,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-07: long TC-FAIL-04 asserts Liam output only; TestProxy 30s forward timeout limits real 90s coverage
 - [Phase 01]: 01-08: JCS test digits via std {:e}; bad-id proposals report not_in_catalog since catalog lookup precedes format check
 - [Phase 01]: 01-09: run-record schema added (no change-control conflict); layers_outside_expectancy_scope serialized as pairs vs spec 8.1 objects flagged for owner
+- [Phase 01]: Only 403 purpose_refused maps to exit 20; other 403 exit 21. Layer entries serialized as {id,status} objects (spec 8.1)
 
 ### Pending Todos
 
