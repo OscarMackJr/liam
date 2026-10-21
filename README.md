@@ -92,7 +92,11 @@ each is recorded here for user review and none is a confirmed upstream fact.
   no retry, exit 21 with `hometown:<code>` or `hometown:403`.
 - Conformance A5: an unparseable hometown 200 is `hometown:unavailable`
   without retry; an olive 2xx that is not a valid proposal response is
-  `olive:unavailable`.
+  `olive:unavailable`. "Valid" includes the status: it must be one of the
+  vocabulary's `action_outcomes` (design spec 7.2), and a 202 must be
+  `awaiting_approval`. A 200 idempotent replay is recorded as the returned
+  status (TC-ACT-09). The run record schema pins `proposal.status` to the
+  same list.
 - Harness limits: the local capture proxy and stubs use plain http with
   absolute-form requests; HTTPS `CONNECT` tunnelling through nono-proxy is
   not exercised locally and is left to the live phases.

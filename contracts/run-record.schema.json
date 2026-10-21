@@ -26,7 +26,7 @@
     },
     "proposal": {
       "description": "null when nothing was submitted; reason is additive (D-07): a guarded code for refused_policy, otherwise null",
-      "oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["proposal_id", "status", "reason"], "properties": {"proposal_id": {"type": "string"}, "status": {"type": "string"}, "reason": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}]}}}]
+      "oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["proposal_id", "status", "reason"], "properties": {"proposal_id": {"type": "string"}, "status": {"type": "string", "enum": ["proposed", "refused_policy", "awaiting_approval", "approved", "rejected", "executed", "execution_failed", "expired"], "description": "vocabulary action_outcomes (design 7.2)"}, "reason": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}]}}}]
     },
     "log_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
   }

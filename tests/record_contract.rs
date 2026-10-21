@@ -99,9 +99,14 @@ fn is_code(text: &str) -> bool {
 }
 
 /// Returns the first violation, or None. Handles the subset of JSON Schema the
-/// run-record schema uses: type, pattern (two known), required, properties,
+/// run-record schema uses: type, enum, pattern (two known), required, properties,
 /// additionalProperties:false, items, oneOf.
 fn violation(schema: &Value, value: &Value, path: &str) -> Option<String> {
+    if let Some(allowed) = schema.get("enum").and_then(Value::as_array) {
+        if !allowed.contains(value) {
+            return Some(format!("{path}: {value} not in enum"));
+        }
+    }
     if let Some(options) = schema.get("oneOf").and_then(Value::as_array) {
         if options.iter().any(|o| violation(o, value, path).is_none()) {
             return None;

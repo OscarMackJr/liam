@@ -462,3 +462,35 @@ fn tc_net_04_negative_control_trap_fires() {
     assert_eq!(attempts.len(), 1);
     assert_eq!(attempts[0]["outcome"], "allowed");
 }
+
+// ---- olive status must be a vocabulary action_outcome (design §7.2, §7.4) ----
+
+#[test]
+fn olive_status_outside_the_vocabulary_is_not_recorded() {
+    for (http, status) in [
+        (202u16, "executed"),
+        (202, CANARY),
+        (200, "approved\nforged"),
+    ] {
+        let hometown = ScriptedStub::new(vec![Reply::json(200, &answer_body(&valid_note()))]);
+        let olive = ScriptedStub::olive_ok(http, "prop-1", status, None);
+        let case = run_case(&hometown, &olive);
+        assert_eq!(case.code(), 22, "stderr: {}", case.stderr());
+        assert_eq!(case.stderr(), "liam: 22 olive:unavailable\n");
+        assert_eq!(olive.count(), 1);
+        let record = case.record();
+        assert!(record["proposal"].is_null(), "{record}");
+        assert_eq!(record["outcome"], "olive_failed");
+        assert!(!case.stdout().contains("Proposal prop-1"));
+        let (record, log) = read_run_record(&case.runs);
+        let text = format!("{record}{}", String::from_utf8_lossy(&log));
+        assert!(!text.contains(CANARY) && !text.contains("forged"));
+    }
+
+    // a 200 idempotent replay is recorded as the returned status (TC-ACT-09)
+    let hometown = ScriptedStub::new(vec![Reply::json(200, &answer_body(&valid_note()))]);
+    let olive = ScriptedStub::olive_ok(200, "prop-1", "approved", None);
+    let case = run_case(&hometown, &olive);
+    case.assert_ok_empty_stderr();
+    assert_eq!(case.record()["proposal"]["status"], "approved");
+}

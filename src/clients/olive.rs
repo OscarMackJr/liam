@@ -47,10 +47,35 @@ impl HttpOliveClient {
         }
     }
 }
+/// The vocabulary's `action_outcomes` (design §7.2: "Status values are the
+/// vocabulary's action_outcomes"). Kept in step with the SHA-pinned
+/// `contracts/vendored/vocabulary.yaml` by a unit test.
+pub const ACTION_OUTCOMES: &[&str] = &[
+    "proposed",
+    "refused_policy",
+    "awaiting_approval",
+    "approved",
+    "rejected",
+    "executed",
+    "execution_failed",
+    "expired",
+];
+
+/// A 202 is always `awaiting_approval`; a 200 is `refused_policy` or an
+/// idempotent replay recorded as the returned status (§7.4, TC-ACT-09). Any
+/// status outside the vocabulary is not a proposal response (S-OL-1:
+/// olive:unavailable), so free text never reaches the record or stdout.
+fn status_ok(http_status: u16, status: &str) -> bool {
+    ACTION_OUTCOMES.contains(&status) && (http_status != 202 || status == "awaiting_approval")
+}
+
 pub(crate) fn classify(status: u16, body: &[u8]) -> Result<ProposalResponse, OliveError> {
     if status == 200 || status == 202 {
         let mut parsed: ProposalResponse =
             serde_json::from_slice(body).map_err(|_| OliveError::InvalidResponse)?;
+        if !status_ok(status, &parsed.status) {
+            return Err(OliveError::InvalidResponse);
+        }
         parsed.http_status = status;
         if !parsed.reason.as_deref().is_some_and(guard_code) {
             parsed.reason = None;
@@ -148,5 +173,55 @@ mod tests {
             classify(200, b"nope").unwrap_err(),
             OliveError::InvalidResponse
         );
+    }
+
+    #[test]
+    fn status_must_be_a_vocabulary_outcome() {
+        let body = |s: &str| format!(r#"{{"proposal_id":"p","status":"{s}"}}"#);
+        for bad in [
+            "",
+            "Approved",
+            "awaiting approval",
+            "CANARY-7f3a",
+            "ok\\u001b[2K",
+        ] {
+            for http in [200, 202] {
+                assert_eq!(
+                    classify(http, body(bad).as_bytes()).unwrap_err(),
+                    OliveError::InvalidResponse,
+                    "{http} {bad}"
+                );
+            }
+        }
+        // 202 is only ever awaiting_approval
+        assert_eq!(
+            classify(202, body("executed").as_bytes()).unwrap_err(),
+            OliveError::InvalidResponse
+        );
+        // 200 replay is recorded as the returned status (TC-ACT-09)
+        for ok in ACTION_OUTCOMES {
+            assert_eq!(classify(200, body(ok).as_bytes()).unwrap().status, *ok);
+        }
+        assert!(classify(202, body("awaiting_approval").as_bytes()).is_ok());
+    }
+
+    #[test]
+    fn action_outcomes_match_the_vendored_vocabulary() {
+        let yaml = include_str!("../../contracts/vendored/vocabulary.yaml");
+        let mut listed = Vec::new();
+        let mut inside = false;
+        for line in yaml.lines() {
+            if line.trim_end() == "action_outcomes:" {
+                inside = true;
+                continue;
+            }
+            if inside {
+                match line.trim().strip_prefix("- ") {
+                    Some(item) if line.starts_with(char::is_whitespace) => listed.push(item),
+                    _ => break,
+                }
+            }
+        }
+        assert_eq!(listed, ACTION_OUTCOMES);
     }
 }
