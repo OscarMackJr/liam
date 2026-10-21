@@ -76,9 +76,11 @@ each is recorded here for user review and none is a confirmed upstream fact.
   `parameters_schema` only (no `required_parameters`). The real olive catalog
   shape is checked at the Phase 4 contract diff. The validator supports
   only `type`, `properties`, `required`, `additionalProperties` and
-  `maxLength`; a catalog with any other key, or whose `action_id_format` is
-  not `^[a-z0-9_.]+@[0-9]+$`, is refused as `olive:catalog` before hometown
-  is called (fail closed on contract drift).
+  `maxLength`. Loading the catalog is a startup prerequisite, next to the
+  vocabulary check: a missing or unparseable catalog, one with any other key,
+  a version other than `olive.catalog_version`, or an `action_id_format`
+  other than `^[a-z0-9_.]+@[0-9]+$` exits `11 config:catalog` before any
+  network request and writes no run record (fail closed on contract drift).
 - D-04: deviation beyond design spec 7.3: a hometown proposal whose
   `party_ref` does not match the requested party is suppressed with reason
   `schema`. It is suppress-only (Liam never rewrites the proposal), so D15
@@ -108,6 +110,26 @@ each is recorded here for user review and none is a confirmed upstream fact.
   not exercised locally and is left to the live phases.
 - Evidence note: `layers_outside_expectancy_scope` is written as a list of
   `{"id", "status"}` objects, as in design spec 8.1.
+- Evidence location: `evidence.runs_dir` is resolved during the startup
+  checks. If `%LOCALAPPDATA%` cannot be expanded (variable unset or empty),
+  any other `%` placeholder remains, or the result is not an absolute path,
+  Liam exits `11 config:runs_dir` before any network request and writes no
+  run record.
+
+## Exit codes and reasons
+
+Each failure prints exactly one line, `liam: <code> <reason>`, on stderr.
+Codes follow design spec §11; the reasons added by this repository are
+marked as such.
+
+| Code | Meaning | Reasons |
+|---:|---|---|
+| 10 | Receipt or agent-record self-check failed | `receipt:*`, `agent_record:*` |
+| 11 | Environment, configuration or input check failed (before any network request, no run record) | `args:required`, `input:question_length`, `config:missing`, `config:parse`, `config:catalog` (this repo), `config:runs_dir` (this repo), `vocab:missing`, `vocab:sha256`, `vocab:parse`, `vocab:purpose`, `env:no_proxy`, `env:no_proxy_nonempty`, `env:proxy_not_loopback` |
+| 20 | hometown refused the purpose | `hometown:purpose_refused` |
+| 21 | hometown answer failed | `hometown:<code>`, `hometown:<status>`, `hometown:unavailable` |
+| 22 | olive submission failed | `olive:<code>`, `olive:<status>`, `olive:unavailable` |
+| 30 | Evidence write failed after the task ran | `evidence:write` |
 
 ## Vocabulary
 

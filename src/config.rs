@@ -87,15 +87,52 @@ pub fn validated_proxy(
         port,
     })
 }
-pub fn expand_local_app_data(path: &str) -> String {
-    std::env::var("LOCALAPPDATA")
-        .map(|value| path.replace("%LOCALAPPDATA%", &value))
-        .unwrap_or_else(|_| path.to_owned())
+/// Resolves the evidence `runs_dir` before any network request. The only
+/// placeholder is `%LOCALAPPDATA%`; it must expand from a non-empty
+/// `local_app_data`, no `%` may remain, and the result must be absolute, so
+/// evidence never lands in a folder relative to the working directory.
+pub fn resolve_runs_dir(path: &str, local_app_data: Option<&str>) -> Result<String, &'static str> {
+    let expanded = if path.contains("%LOCALAPPDATA%") {
+        match local_app_data {
+            Some(value) if !value.is_empty() => path.replace("%LOCALAPPDATA%", value),
+            _ => return Err("config:runs_dir"),
+        }
+    } else {
+        path.to_owned()
+    };
+    if expanded.contains('%') || !std::path::Path::new(&expanded).is_absolute() {
+        return Err("config:runs_dir");
+    }
+    Ok(expanded)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{sha256_hex, validated_proxy};
+    use super::{resolve_runs_dir, sha256_hex, validated_proxy};
+
+    #[test]
+    fn runs_dir_must_expand_to_an_absolute_path() {
+        let path = r"%LOCALAPPDATA%\Fiskroad\liam\runs";
+        assert_eq!(
+            resolve_runs_dir(path, Some(r"C:\Users\u\AppData\Local")).unwrap(),
+            r"C:\Users\u\AppData\Local\Fiskroad\liam\runs"
+        );
+        for (path, local) in [
+            (r"%LOCALAPPDATA%\runs", None),
+            (r"%LOCALAPPDATA%\runs", Some("")),
+            (r"%LOCALAPPDATA%\runs", Some("relative")),
+            ("runs", Some(r"C:\x")),
+            (r"%TEMP%\runs", Some(r"C:\x")),
+            (r"C:\%OTHER%\runs", Some(r"C:\x")),
+        ] {
+            assert_eq!(
+                resolve_runs_dir(path, local),
+                Err("config:runs_dir"),
+                "{path} {local:?}"
+            );
+        }
+        assert!(resolve_runs_dir("C:/abs/runs", None).is_ok());
+    }
     #[test]
     fn sha256_matches_the_standard_empty_vector() {
         assert_eq!(

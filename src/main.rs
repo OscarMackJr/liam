@@ -1,4 +1,5 @@
 use liam::{
+    catalog,
     clients::{
         build_proxy_client,
         hometown::{
@@ -6,7 +7,7 @@ use liam::{
         },
         olive::{HttpOliveClient, OliveError},
     },
-    config::{expand_local_app_data, load, sha256_hex, validated_proxy},
+    config::{load, resolve_runs_dir, sha256_hex, validated_proxy},
     evidence::{Evidence, ProposalOutcome},
     receipt::{ensure_not_writable, validate_startup, StartupPolicy},
     task::{run, TaskError},
@@ -130,6 +131,13 @@ fn main() {
     ) {
         fail(11, "vocab:purpose");
     }
+    let catalog = fs::read_to_string(&config.olive.catalog_path)
+        .ok()
+        .and_then(|text| catalog::load(&text, &config.olive.catalog_version).ok())
+        .unwrap_or_else(|| fail(11, "config:catalog"));
+    let local_app_data = env::var("LOCALAPPDATA").ok();
+    let runs_dir = resolve_runs_dir(&config.evidence.runs_dir, local_app_data.as_deref())
+        .unwrap_or_else(|reason| fail(11, reason));
     let https_proxy = env::var("HTTPS_PROXY").unwrap_or_default();
     let http_proxy = env::var("HTTP_PROXY").unwrap_or_default();
     let proxy = validated_proxy(
@@ -173,11 +181,7 @@ fn main() {
     )
     .unwrap_or_else(|error| fail(10, &error.0));
     let run_id = Uuid::now_v7().to_string();
-    let mut evidence = Evidence::new(
-        expand_local_app_data(&config.evidence.runs_dir),
-        run_id.clone(),
-        now(),
-    );
+    let mut evidence = Evidence::new(runs_dir, run_id.clone(), now());
     let transport =
         build_proxy_client(&proxy.url).unwrap_or_else(|_| fail(21, "hometown:unavailable"));
     let hometown = HttpHometownClient::new(
@@ -190,8 +194,6 @@ fn main() {
         &config.olive.base_url,
         config.olive.timeout_seconds,
     );
-    let catalog = fs::read_to_string(&config.olive.catalog_path)
-        .unwrap_or_else(|_| fail(22, "olive:catalog"));
     #[cfg(feature = "stubs")]
     if liam::stubs::gateway_attempt_requested() {
         let outcome = liam::stubs::gateway_attempt(&transport.client());
@@ -205,7 +207,6 @@ fn main() {
         &retrying,
         &olive,
         &catalog,
-        &config.olive.catalog_version,
         &party_ref,
         &question,
         &purpose,
@@ -374,7 +375,6 @@ fn map_error(error: &TaskError) -> (&'static str, i32, String) {
             };
             (error.outcome(), code, reason)
         }
-        TaskError::Catalog => ("olive_failed", 22, "olive:catalog".to_string()),
         TaskError::Olive { error, .. } => {
             let reason = match error {
                 OliveError::Rejected { reason, .. } => reason.clone(),

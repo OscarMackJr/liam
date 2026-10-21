@@ -65,6 +65,17 @@ impl Catalog {
     }
 }
 
+/// Startup prerequisite (exit 11 `config:catalog`): the catalog parses within
+/// the supported subset, carries the configured version and declares the
+/// supported `action_id_format`. Runs before any network request.
+pub fn load(text: &str, expected_version: &str) -> Result<Catalog, &'static str> {
+    let catalog: Catalog = serde_json::from_str(text).map_err(|_| "config:catalog")?;
+    if catalog.version != expected_version || !catalog.action_id_format_supported() {
+        return Err("config:catalog");
+    }
+    Ok(catalog)
+}
+
 /// Hand-written check of ^[a-z0-9_.]+@[0-9]+$.
 pub fn action_id_format_ok(id: &str) -> bool {
     let Some((name, ver)) = id.split_once('@') else {
@@ -199,6 +210,28 @@ mod tests {
             r#"{"version":"0.4","actions":[{"action_type":"a.b@1","parameters_schema":{"type":"object"},"x":1}]}"#,
         ] {
             assert!(serde_json::from_str::<Catalog>(extra).is_err(), "{extra}");
+        }
+    }
+
+    #[test]
+    fn load_refuses_unsupported_catalogs() {
+        let pinned = include_str!("../contracts/catalog-0.4.json");
+        assert!(load(pinned, "0.4").is_ok());
+        assert_eq!(load(pinned, "0.5").unwrap_err(), "config:catalog");
+        let fmt = r#""action_id_format":"^[a-z0-9_.]+@[0-9]+$""#;
+        for text in [
+            String::new(),
+            "not json".to_owned(),
+            // unsupported keyword
+            format!(
+                r#"{{"version":"0.4",{fmt},"actions":[{{"action_type":"crm.case_note@1","parameters_schema":{{"type":"object","properties":{{"note":{{"type":"string","enum":["a"]}}}}}}}}]}}"#
+            ),
+            // changed action_id_format
+            r#"{"version":"0.4","action_id_format":"^.+$","actions":[]}"#.to_owned(),
+            // missing action_id_format
+            r#"{"version":"0.4","actions":[]}"#.to_owned(),
+        ] {
+            assert_eq!(load(&text, "0.4").unwrap_err(), "config:catalog", "{text}");
         }
     }
 

@@ -10,7 +10,6 @@ use std::time::Instant;
 #[derive(Debug)]
 pub enum TaskError {
     Hometown(HometownError),
-    Catalog,
     /// The proposal passed validation (`proposal.validated`) and olive failed.
     Olive {
         answer: String,
@@ -90,18 +89,13 @@ fn validate(catalog: &Catalog, raw: &str, party_ref: &str) -> Result<(), &'stati
 pub fn run(
     hometown: &dyn HometownClient,
     olive: &dyn OliveClient,
-    catalog_json: &str,
-    catalog_version: &str,
+    catalog: &Catalog,
     party_ref: &str,
     question: &str,
     purpose: &str,
     run_id: &str,
     session_id: &str,
 ) -> Result<TaskResult, TaskError> {
-    let catalog: Catalog = serde_json::from_str(catalog_json).map_err(|_| TaskError::Catalog)?;
-    if catalog.version != catalog_version || !catalog.action_id_format_supported() {
-        return Err(TaskError::Catalog);
-    }
     let started = Instant::now();
     let answer = hometown
         .answer(&AnswerRequest {
@@ -156,7 +150,7 @@ pub fn run(
     } else {
         proposal
     };
-    if let Err(reason) = validate(&catalog, raw.get(), party_ref) {
+    if let Err(reason) = validate(catalog, raw.get(), party_ref) {
         return Ok(suppress(reason, raw.get(), limit_suppressed));
     }
     let fields: RawFour = match serde_json::from_str(raw.get()) {
@@ -193,7 +187,9 @@ mod tests {
     use crate::clients::hometown::AnswerResponse;
     use std::cell::RefCell;
 
-    const CATALOG: &str = include_str!("../contracts/catalog-0.4.json");
+    fn catalog() -> Catalog {
+        crate::catalog::load(include_str!("../contracts/catalog-0.4.json"), "0.4").unwrap()
+    }
     const RUN: &str = "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b";
 
     struct Hometown {
@@ -245,17 +241,7 @@ mod tests {
         }
     }
     fn go(h: &Hometown, o: &Olive) -> Result<TaskResult, TaskError> {
-        run(
-            h,
-            o,
-            CATALOG,
-            "0.4",
-            "p",
-            "q",
-            "servicing",
-            RUN,
-            "session-1",
-        )
+        run(h, o, &catalog(), "p", "q", "servicing", RUN, "session-1")
     }
     fn suppressed(proposal: &str) -> Option<&'static str> {
         let o = Olive::new(false);
@@ -359,41 +345,6 @@ mod tests {
         assert_eq!(o.bodies.borrow().len(), 1);
         assert_eq!(r.limit_suppressed, 1);
         assert!(r.proposal.is_some());
-    }
-
-    #[test]
-    fn unsupported_catalog_is_a_catalog_error_before_hometown() {
-        struct NoHometown;
-        impl HometownClient for NoHometown {
-            fn answer(&self, _: &AnswerRequest<'_>) -> Result<AnswerResponse, HometownError> {
-                panic!("hometown must not be called with an unsupported catalog");
-            }
-        }
-        let fmt = r#""action_id_format":"^[a-z0-9_.]+@[0-9]+$""#;
-        for catalog in [
-            // unsupported keyword
-            format!(
-                r#"{{"version":"0.4",{fmt},"actions":[{{"action_type":"crm.case_note@1","parameters_schema":{{"type":"object","properties":{{"note":{{"type":"string","enum":["a"]}}}}}}}}]}}"#
-            ),
-            // changed action_id_format
-            r#"{"version":"0.4","action_id_format":"^.+$","actions":[]}"#.to_owned(),
-            // missing action_id_format
-            r#"{"version":"0.4","actions":[]}"#.to_owned(),
-        ] {
-            let o = Olive::new(false);
-            let r = run(
-                &NoHometown,
-                &o,
-                &catalog,
-                "0.4",
-                "p",
-                "q",
-                "servicing",
-                RUN,
-                "session-1",
-            );
-            assert!(matches!(r, Err(TaskError::Catalog)), "{catalog}");
-        }
     }
 
     #[test]

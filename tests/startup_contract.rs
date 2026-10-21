@@ -381,3 +381,82 @@ fn tc_start_16_record_age() {
         a["written_at_unix"] = json!(now() + 600)
     });
 }
+
+// ---- catalog and runs_dir are startup prerequisites (WR-04, WR-08) ----
+
+fn set_config(fixture: &StubRecordPair, key: &str, value: &str) {
+    let path = fixture.directory().join("liam.toml");
+    let text = fs::read_to_string(&path).unwrap();
+    let prefix = format!("{key} = ");
+    let edited: Vec<String> = text
+        .lines()
+        .map(|line| {
+            if line.starts_with(&prefix) {
+                format!("{prefix}'{value}'")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect();
+    assert_ne!(edited.join("\n"), text.trim_end(), "{key} not found");
+    fs::write(&path, edited.join("\n") + "\n").unwrap();
+}
+
+#[test]
+fn catalog_failures_exit_11_before_any_request() {
+    let case = run_case(|f| set_config(f, "catalog_path", "missing-catalog.json"));
+    case.assert_refused(11, "config:catalog");
+    let case = run_case(|f| {
+        fs::write(f.directory().join("corrupt.json"), "{\"version\":").unwrap();
+        set_config(f, "catalog_path", "corrupt.json");
+    });
+    case.assert_refused(11, "config:catalog");
+    let case = run_case(|f| set_config(f, "catalog_version", "0.5"));
+    case.assert_refused(11, "config:catalog");
+}
+
+#[test]
+fn unset_local_app_data_exits_11_before_any_request() {
+    let hometown = ScriptedStub::new(vec![Reply::json(200, ANSWER)]);
+    let olive = ScriptedStub::new(vec![Reply::empty(500)]);
+    let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
+    let fixture = StubRecordPair::for_proxy(proxy.port());
+    write_test_config(
+        fixture.directory(),
+        hometown.base_url(),
+        olive.base_url(),
+        5,
+    );
+    set_config(&fixture, "runs_dir", "%LOCALAPPDATA%/Fiskroad/liam/runs");
+    for local_app_data in [None, Some("")] {
+        let mut command = common::liam_command(
+            EXE,
+            &fixture,
+            proxy.url(),
+            &["--purpose", "servicing", "--party", "p", "--question", "q"],
+            &[],
+        );
+        match local_app_data {
+            Some(value) => command.env("LOCALAPPDATA", value),
+            None => command.env_remove("LOCALAPPDATA"),
+        };
+        let output = command.output().unwrap();
+        assert_eq!(output.status.code(), Some(11));
+        assert_eq!(
+            String::from_utf8_lossy(&output.stderr),
+            "liam: 11 config:runs_dir\n"
+        );
+    }
+    let stats = proxy.stats();
+    assert_eq!(stats.hometown_hits + stats.olive_hits, 0);
+    assert_eq!(hometown.count(), 0);
+    assert!(!fixture.directory().join("%LOCALAPPDATA%").exists());
+    assert!(!fixture.directory().join("runs").exists());
+}
+
+#[test]
+fn relative_runs_dir_exits_11_before_any_request() {
+    let case = run_case(|f| set_config(f, "runs_dir", "relative/runs"));
+    case.assert_refused(11, "config:runs_dir");
+    assert!(!case.fixture.directory().join("relative").exists());
+}
