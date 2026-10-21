@@ -13,13 +13,24 @@ use liam::{
 };
 use std::{
     env, fs,
+    io::{self, Write},
     time::{SystemTime, UNIX_EPOCH},
 };
 use uuid::Uuid;
 
 fn fail(code: i32, reason: &str) -> ! {
-    eprintln!("liam: {code} {reason}");
+    // writeln! instead of eprintln!: a closed stderr must not turn the one
+    // reason line into a panic with a different exit code (REQ-LIAM-13).
+    let _ = writeln!(io::stderr().lock(), "liam: {code} {reason}");
     std::process::exit(code);
+}
+
+/// Console output that never panics. A closed or broken stdout must not skip
+/// the run record or replace the documented exit code with a panic (§3.3
+/// steps 5-6, REQ-LIAM-13); the console is display only, so a failed write is
+/// dropped and the run continues to its evidence and exit code.
+fn say(line: &str) {
+    let _ = writeln!(io::stdout().lock(), "{line}");
 }
 fn now() -> u64 {
     SystemTime::now()
@@ -204,14 +215,14 @@ fn main() {
     match task {
         Ok(result) => {
             if !result.context_complete {
-                println!("Notice: answer may be incomplete.");
+                say("Notice: answer may be incomplete.");
             }
-            println!("{}", result.answer);
+            say(&result.answer);
             if let Some((proposal_id, status)) = &result.proposal {
-                println!("Proposal {proposal_id}: {status}");
+                say(&format!("Proposal {proposal_id}: {status}"));
             }
             if let Some(suggestion) = &result.suggestion {
-                println!("Suggestion (not submitted): {suggestion}");
+                say(&format!("Suggestion (not submitted): {suggestion}"));
             }
             answer_received(
                 &mut evidence,
@@ -296,9 +307,9 @@ fn main() {
             } = &error
             {
                 if !context_complete {
-                    println!("Notice: answer may be incomplete.");
+                    say("Notice: answer may be incomplete.");
                 }
-                println!("{answer}");
+                say(answer);
                 answer_received(
                     &mut evidence,
                     trace_id,

@@ -72,7 +72,21 @@ pub fn run_liam(
     args: &[&str],
     extra_env: &[(&str, &str)],
 ) -> Output {
-    Command::new(exe)
+    liam_command(exe, fixture, proxy_url, args, extra_env)
+        .output()
+        .unwrap()
+}
+
+/// The stub-mode command `run_liam` runs, for tests that manage the child.
+pub fn liam_command(
+    exe: &str,
+    fixture: &StubRecordPair,
+    proxy_url: &str,
+    args: &[&str],
+    extra_env: &[(&str, &str)],
+) -> Command {
+    let mut command = Command::new(exe);
+    command
         .current_dir(fixture.directory())
         .args(args)
         .env("LIAM_STUBS", "1")
@@ -82,9 +96,8 @@ pub fn run_liam(
         .env("NO_PROXY", "")
         .env("NONO_RECEIPT_PATH", fixture.receipt_path())
         .env("NONO_AGENT_RECORD_PATH", fixture.agent_path())
-        .envs(extra_env.iter().copied())
-        .output()
-        .unwrap()
+        .envs(extra_env.iter().copied());
+    command
 }
 
 pub fn read_run_record(dir: &Path) -> (serde_json::Value, Vec<u8>) {

@@ -510,3 +510,64 @@ fn missing_required_fields_are_invalid_responses() {
         assert!(!log.contains("proposal.refused") && !log.contains("Free Text"));
     }
 }
+
+// ---- Broken stdout (REQ-LIAM-13, §3.3 steps 5-6) ----
+
+#[test]
+fn closed_stdout_still_writes_evidence_and_exit_code() {
+    use std::process::Stdio;
+    for (olive_reply, expected_code) in [
+        (
+            r#"{"proposal_id":"prop-1","status":"awaiting_approval"}"#,
+            0,
+        ),
+        ("", 22),
+    ] {
+        let hometown = ScriptedStub::new(vec![Reply::json(200, &proposal_answer())]);
+        let olive = if olive_reply.is_empty() {
+            ScriptedStub::new(vec![Reply::empty(500)])
+        } else {
+            ScriptedStub::new(vec![Reply::json(202, olive_reply)])
+        };
+        let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
+        let fixture = StubRecordPair::for_proxy(proxy.port());
+        let runs = fixture.directory().join("runs");
+        write_test_config(
+            fixture.directory(),
+            hometown.base_url(),
+            olive.base_url(),
+            2,
+        );
+        let mut child = common::liam_command(
+            EXE,
+            &fixture,
+            proxy.url(),
+            &[
+                "--purpose",
+                "servicing",
+                "--party",
+                CANARY,
+                "--question",
+                "question",
+            ],
+            &[],
+        )
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+        // Close the read end before Liam prints anything.
+        drop(child.stdout.take());
+        let output = child.wait_with_output().unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        assert!(!stderr.contains("panicked"), "{stderr}");
+        assert_eq!(output.status.code(), Some(expected_code), "{stderr}");
+        if expected_code == 0 {
+            assert_eq!(stderr, "");
+        } else {
+            assert_eq!(stderr, "liam: 22 olive:unavailable\n");
+        }
+        let (record, _) = read_run_record(&runs);
+        assert_eq!(record["answer"]["trace_id"], "trace-stub-1");
+    }
+}
