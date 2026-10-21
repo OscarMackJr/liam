@@ -28,7 +28,20 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
   3. A `--question` that is empty or longer than 4000 scalar values exits 11 `input:question_length`, with no request sent and no run record written.
   4. The stubs, the `contracts/` schemas, README, `Cargo.toml`, `liam.toml`, `agent_version` and the profile version all agree with v0.4.1 (with A1/A2/A5 status recorded). The automated TC-NET-03 static check and the local TC-NET-04 gateway-trap harness pass in `cargo test`. `liam.toml` pins the canonical vocabulary hash (`60a44f00…`) and TC-LVOC passes against it.
   5. RESULTS.md has a measured row (n of n, tag, Liam commit, limits) for every v0.4.1 TC that can run locally. TC-START-07 (DSSE) is marked deferred.
-**Plans**: TBD
+**Plans**: 12 plans
+Plans:
+- [ ] 01-01-PLAN.md — 0.4.1 labels, profile type, gitattributes, shared test helper
+- [ ] 01-02-PLAN.md — TC-NET-03 automated static scan
+- [ ] 01-03-PLAN.md — scripted stubs, routing proxy, gateway trap
+- [ ] 01-04-PLAN.md — catalog parameters_schema validator
+- [ ] 01-05-PLAN.md — RawValue pass-through, guarded error codes, task validation
+- [ ] 01-06-PLAN.md — evidence events/record, main.rs question check, retry, mapping, gateway hook
+- [ ] 01-07-PLAN.md — ANS/FAIL/input process tests
+- [ ] 01-08-PLAN.md — JCS canonicaliser, ACT/SEC/NET-04 process tests
+- [ ] 01-09-PLAN.md — contracts, run-record schema, README, EVD tests
+- [ ] 01-10-PLAN.md — START/KEY/META/LVOC/BUILD coverage
+- [ ] 01-11-PLAN.md — clean-tree measurement and per-TC RESULTS.md
+- [ ] 01-12-PLAN.md — canonical vocabulary pin (blocked on user file)
 
 ### Phase 2: Real nono Session
 **Goal**: Liam starts, self-checks and refuses correctly inside a real nono fork session on this dev machine, using a `token_arm` that the nono owner has signed off
