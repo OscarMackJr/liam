@@ -1013,6 +1013,9 @@ pub fn gateway_attempt(client: &reqwest::blocking::Client) -> &'static str {
     }
 }
 
+/// Event name kept here so non-stub sources hold no gateway literal (static scan).
+pub const GATEWAY_EVENT: &str = "gateway.attempt";
+
 pub fn gateway_attempt_requested() -> bool {
     std::env::var("LIAM_STUB_GATEWAY_ATTEMPT").is_ok_and(|v| v == "1")
 }

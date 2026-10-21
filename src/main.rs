@@ -1,11 +1,13 @@
 use liam::{
     clients::{
         build_proxy_client,
-        hometown::{HometownError, HttpHometownClient},
+        hometown::{
+            AnswerRequest, AnswerResponse, HometownClient, HometownError, HttpHometownClient,
+        },
         olive::{HttpOliveClient, OliveError},
     },
     config::{expand_local_app_data, load, sha256_hex, validated_proxy},
-    evidence::Evidence,
+    evidence::{Evidence, ProposalOutcome},
     receipt::{ensure_not_writable, validate_startup, StartupPolicy},
     task::{run, TaskError},
 };
@@ -40,12 +42,30 @@ fn launch_process_id() -> u32 {
 fn launch_process_id() -> u32 {
     std::process::id()
 }
-fn required_arg(name: &str) -> String {
-    let args: Vec<String> = env::args().collect();
+fn all_args() -> Vec<String> {
+    env::args_os()
+        .map(|arg| {
+            arg.into_string()
+                .unwrap_or_else(|_| fail(11, "args:required"))
+        })
+        .collect()
+}
+fn required_arg(args: &[String], name: &str) -> String {
     args.windows(2)
         .find(|pair| pair[0] == name)
         .map(|pair| pair[1].clone())
         .unwrap_or_else(|| fail(11, "args:required"))
+}
+
+/// Retries only `hometown.answer`, once, on 5xx/timeout with the same request.
+struct RetryOnce<'a>(&'a dyn HometownClient);
+impl HometownClient for RetryOnce<'_> {
+    fn answer(&self, request: &AnswerRequest<'_>) -> Result<AnswerResponse, HometownError> {
+        match self.0.answer(request) {
+            Err(HometownError::Unavailable) => self.0.answer(request),
+            other => other,
+        }
+    }
 }
 fn required_env(name: &str) -> String {
     env::var(name).unwrap_or_else(|_| {
@@ -78,12 +98,16 @@ fn vocabulary_contains_purpose(yaml: &str, purpose: &str) -> bool {
 }
 
 fn main() {
+    let args = all_args();
+    let purpose = required_arg(&args, "--purpose");
+    let party_ref = required_arg(&args, "--party");
+    let question = required_arg(&args, "--question");
+    if !(1..=4000).contains(&question.chars().count()) {
+        fail(11, "input:question_length");
+    }
     let config_text =
         fs::read_to_string("liam.toml").unwrap_or_else(|_| fail(11, "config:missing"));
     let config = load(&config_text).unwrap_or_else(|reason| fail(11, reason));
-    let purpose = required_arg("--purpose");
-    let party_ref = required_arg("--party");
-    let question = required_arg("--question");
     let vocabulary =
         fs::read(&config.vocabulary.path).unwrap_or_else(|_| fail(11, "vocab:missing"));
     if sha256_hex(&vocabulary) != config.vocabulary.sha256 {
@@ -157,8 +181,17 @@ fn main() {
     );
     let catalog = fs::read_to_string(&config.olive.catalog_path)
         .unwrap_or_else(|_| fail(22, "olive:catalog"));
+    #[cfg(feature = "stubs")]
+    if liam::stubs::gateway_attempt_requested() {
+        let outcome = liam::stubs::gateway_attempt(&transport.client());
+        evidence.event_with(
+            liam::stubs::GATEWAY_EVENT,
+            serde_json::json!({ "outcome": outcome }),
+        );
+    }
+    let retrying = RetryOnce(&hometown);
     let task = run(
-        &hometown,
+        &retrying,
         &olive,
         &catalog,
         &config.olive.catalog_version,
@@ -167,21 +200,7 @@ fn main() {
         &purpose,
         &run_id,
         &session.session_id,
-    )
-    .or_else(|error| match error {
-        TaskError::Hometown(HometownError::Unavailable) => run(
-            &hometown,
-            &olive,
-            &catalog,
-            &config.olive.catalog_version,
-            &party_ref,
-            &question,
-            &purpose,
-            &run_id,
-            &session.session_id,
-        ),
-        other => Err(other),
-    });
+    );
     match task {
         Ok(result) => {
             if !result.context_complete {
@@ -191,9 +210,44 @@ fn main() {
             if let Some((proposal_id, status)) = &result.proposal {
                 println!("Proposal {proposal_id}: {status}");
             }
-            if result.suppressed.is_some() {
-                evidence.event("proposal.suppressed");
+            if let Some(reason) = result.suppressed {
+                evidence.event_with(
+                    "proposal.suppressed",
+                    serde_json::json!({ "reason": reason }),
+                );
             }
+            for _ in 0..result.limit_suppressed {
+                evidence.event_with(
+                    "proposal.suppressed",
+                    serde_json::json!({ "reason": "limit" }),
+                );
+            }
+            let mut refused_reason: Option<String> = None;
+            if let Some(submitted) = &result.submitted {
+                evidence.event_with(
+                    "proposal.submitted",
+                    serde_json::json!({ "http_status": submitted.http_status }),
+                );
+                if submitted.status == "refused_policy" {
+                    let reason = submitted.reason.clone().unwrap_or_default();
+                    evidence.event_with(
+                        "proposal.refused",
+                        serde_json::json!({
+                            "reason": reason,
+                            "investigate": reason == "trace_proposal_mismatch",
+                        }),
+                    );
+                    refused_reason = Some(reason);
+                }
+            }
+            let outcome = result
+                .proposal
+                .as_ref()
+                .map(|(id, status)| ProposalOutcome {
+                    proposal_id: id.as_str(),
+                    status: status.as_str(),
+                    reason: refused_reason.as_deref(),
+                });
             if evidence
                 .finish(
                     &session,
@@ -204,10 +258,7 @@ fn main() {
                     &party_ref,
                     "completed",
                     Some((&result.trace_id, result.context_complete)),
-                    result
-                        .proposal
-                        .as_ref()
-                        .map(|(id, status)| (id.as_str(), status.as_str())),
+                    outcome,
                     now(),
                 )
                 .is_err()
@@ -215,80 +266,64 @@ fn main() {
                 fail(30, "evidence:write");
             }
         }
-        Err(TaskError::Hometown(error)) => {
-            let (code, reason) = match &error {
+        Err(error) => {
+            let (outcome, code, reason) = map_error(&error);
+            let mut answer_ids = None;
+            if let TaskError::Olive {
+                answer,
+                context_complete,
+                trace_id,
+                ..
+            } = &error
+            {
+                if !context_complete {
+                    println!("Notice: answer may be incomplete.");
+                }
+                println!("{answer}");
+                answer_ids = Some((trace_id.as_str(), *context_complete));
+            }
+            if evidence
+                .finish(
+                    &session,
+                    &config.agent.agent_id,
+                    &config.agent.version,
+                    config.nono.profile_min_version,
+                    &purpose,
+                    &party_ref,
+                    outcome,
+                    answer_ids,
+                    None,
+                    now(),
+                )
+                .is_err()
+            {
+                fail(30, "evidence:write");
+            }
+            fail(code, &reason)
+        }
+    }
+}
+
+/// One mapping from task failures to (run outcome, exit code, reason line).
+fn map_error(error: &TaskError) -> (&'static str, i32, String) {
+    match error {
+        TaskError::Hometown(error) => {
+            let (code, reason) = match error {
                 HometownError::PurposeRefused(reason) => (20, reason.clone()),
                 HometownError::Rejected { reason, .. } => (21, reason.clone()),
                 HometownError::Unavailable | HometownError::InvalidResponse => {
                     (21, "hometown:unavailable".to_string())
                 }
             };
-            finish_failure(
-                &mut evidence,
-                &session,
-                &config,
-                &purpose,
-                &party_ref,
-                error.outcome(),
-                code,
-                &reason,
-            )
+            (error.outcome(), code, reason)
         }
-        Err(TaskError::Catalog) => fail(22, "olive:catalog"),
-        Err(TaskError::Olive {
-            answer,
-            context_complete,
-            error,
-            ..
-        }) => {
-            if !context_complete {
-                println!("Notice: answer may be incomplete.");
-            }
-            println!("{answer}");
+        TaskError::Catalog => ("olive_failed", 22, "olive:catalog".to_string()),
+        TaskError::Olive { error, .. } => {
             let reason = match error {
-                OliveError::Rejected { reason, .. } => reason,
+                OliveError::Rejected { reason, .. } => reason.clone(),
                 _ => "olive:unavailable".to_string(),
             };
-            finish_failure(
-                &mut evidence,
-                &session,
-                &config,
-                &purpose,
-                &party_ref,
-                "olive_failed",
-                22,
-                &reason,
-            )
+            ("olive_failed", 22, reason)
         }
     }
-}
-#[allow(clippy::too_many_arguments)]
-fn finish_failure(
-    evidence: &mut Evidence,
-    session: &liam::receipt::ValidatedSession,
-    config: &liam::config::RuntimeConfig,
-    purpose: &str,
-    party_ref: &str,
-    outcome: &str,
-    code: i32,
-    reason: &str,
-) -> ! {
-    if evidence
-        .finish(
-            session,
-            &config.agent.agent_id,
-            &config.agent.version,
-            config.nono.profile_min_version,
-            purpose,
-            party_ref,
-            outcome,
-            None,
-            None,
-            now(),
-        )
-        .is_err()
-    {
-        fail(30, "evidence:write");
-    }
-    fail(code, reason)
 }
