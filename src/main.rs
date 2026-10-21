@@ -210,6 +210,9 @@ fn main() {
             if let Some((proposal_id, status)) = &result.proposal {
                 println!("Proposal {proposal_id}: {status}");
             }
+            if let Some(suggestion) = &result.suggestion {
+                println!("Suggestion (not submitted): {suggestion}");
+            }
             answer_received(
                 &mut evidence,
                 &result.trace_id,

@@ -121,6 +121,13 @@ impl Case {
         assert_eq!(events[0]["reason"], reason);
         assert!(self.record()["proposal"].is_null());
         assert!(self.stdout().starts_with("stub answer\n"));
+        // design §7.3: the suggestion is printed as text only
+        assert!(
+            self.stdout().contains("\nSuggestion (not submitted): "),
+            "{}",
+            self.stdout()
+        );
+        assert!(!self.stdout().contains("Proposal "));
     }
 }
 
@@ -154,6 +161,13 @@ fn tc_act_02_not_in_catalog() {
     let olive = idle();
     let case = run_case(&hometown, &olive);
     case.assert_suppressed(&olive, "not_in_catalog");
+    assert!(case
+        .stdout()
+        .ends_with("Suggestion (not submitted): crm.nope@1: stub justification\n"));
+    // the suggestion text stays out of the evidence
+    let (record, log) = read_run_record(&case.runs);
+    let text = format!("{record}{}", String::from_utf8_lossy(&log));
+    assert!(!text.contains("stub justification"));
 }
 
 #[test]

@@ -33,6 +33,23 @@ pub struct TaskResult {
     pub submitted: Option<ProposalResponse>,
     pub suppressed: Option<&'static str>,
     pub limit_suppressed: usize,
+    /// Display text of a suppressed proposal, printed only (design §7.3:
+    /// "the suggestion is printed as text only"). Never passed to evidence.
+    pub suggestion: Option<String>,
+}
+
+/// `<action_type>: <justification>` when both decode as strings, the
+/// justification alone when only it does, else the proposal's raw JSON text.
+fn suggestion_text(raw: &str) -> String {
+    let value: Value = serde_json::from_str(raw).unwrap_or(Value::Null);
+    match (
+        value.get("action_type").and_then(Value::as_str),
+        value.get("justification").and_then(Value::as_str),
+    ) {
+        (Some(action), Some(why)) => format!("{action}: {why}"),
+        (None, Some(why)) => why.to_owned(),
+        _ => raw.to_owned(),
+    }
 }
 
 /// Read-only strict copy used only for validation (D-05): exactly four keys.
@@ -111,6 +128,11 @@ pub fn run(
         submitted,
         suppressed,
         limit_suppressed,
+        suggestion: None,
+    };
+    let suppress = |reason: &'static str, raw: &str, limit_suppressed: usize| TaskResult {
+        suggestion: Some(suggestion_text(raw)),
+        ..result(None, None, Some(reason), limit_suppressed)
     };
     let Some(proposal) = answer.proposal.as_deref() else {
         return Ok(result(None, None, None, 0));
@@ -121,7 +143,7 @@ pub fn run(
     let raw: &RawValue = if proposal.get().trim_start().starts_with('[') {
         let items: Vec<Box<RawValue>> = match serde_json::from_str(proposal.get()) {
             Ok(items) => items,
-            Err(_) => return Ok(result(None, None, Some("schema"), 0)),
+            Err(_) => return Ok(suppress("schema", proposal.get(), 0)),
         };
         limit_suppressed = items.len().saturating_sub(1);
         match items.into_iter().next() {
@@ -135,11 +157,11 @@ pub fn run(
         proposal
     };
     if let Err(reason) = validate(&catalog, raw.get(), party_ref) {
-        return Ok(result(None, None, Some(reason), limit_suppressed));
+        return Ok(suppress(reason, raw.get(), limit_suppressed));
     }
     let fields: RawFour = match serde_json::from_str(raw.get()) {
         Ok(fields) => fields,
-        Err(_) => return Ok(result(None, None, Some("schema"), limit_suppressed)),
+        Err(_) => return Ok(suppress("schema", raw.get(), limit_suppressed)),
     };
     let response = olive
         .submit(&ProposalRequest {
@@ -262,6 +284,19 @@ mod tests {
         let r = go(&hometown(Some(bad)), &o).unwrap();
         assert!(r.has_proposal && !r.validated);
         assert_eq!(r.suppressed, Some("not_in_catalog"));
+        assert_eq!(r.suggestion.as_deref(), Some("crm.nope@1: j"));
+        let r = go(&hometown(Some(one)), &o).unwrap();
+        assert!(
+            r.suggestion.is_none(),
+            "submitted proposals are not suggestions"
+        );
+    }
+
+    #[test]
+    fn suggestion_text_falls_back_to_raw_json() {
+        assert_eq!(suggestion_text(r#"{"justification":"why"}"#), "why");
+        assert_eq!(suggestion_text(r#"{"x":1}"#), r#"{"x":1}"#);
+        assert_eq!(suggestion_text("[1,2"), "[1,2");
     }
 
     #[test]
