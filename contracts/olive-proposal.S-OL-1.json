@@ -1,6 +1,9 @@
 {
-  "contract": "S-OL-1", "status": "owner-authorized stub",
-  "request": {"method": "POST", "path": "/v1/proposals", "required": ["action_type", "party_ref", "parameters", "justification", "run_id", "trace_ref"]},
-  "response": {"success_statuses": [200, 202], "required": ["proposal_id", "status"]},
+  "contract": "S-OL-1", "status": "owner-authorized stub", "version": "0.4.1",
+  "request": {"method": "POST", "path": "/v1/proposals", "required": ["action_type", "party_ref", "parameters", "justification", "run_id", "trace_ref"], "copy_rule": "the four proposal fields are copied unchanged from hometown (D15)"},
+  "response": {"success_statuses": [200, 202], "required": ["proposal_id", "status"], "202": "status awaiting_approval", "200": "status refused_policy with a reason code, or idempotent replay of an earlier identical submission", "optional": ["reason"], "refused_policy_reason_guard_pattern": "^[a-z][a-z0-9_]{0,63}$", "refused_policy_reasons": ["not_in_catalog", "trace_unresolved", "trace_tenant_mismatch", "trace_agent_mismatch", "trace_proposal_mismatch"]},
+  "error_body": {"shape": {"error": "<code>"}, "code_guard_pattern": "^[a-z][a-z0-9_]{0,63}$", "fallback": "missing, unparseable or guard-failing body gives olive:<status>"},
+  "errors": {"400": "malformed body", "401": "key problem", "403": "principal problem", "409": "idempotency_conflict", "422": "trace_not_found", "5xx_or_timeout": "olive:unavailable, no retry"},
+  "status_decides": "HTTP status alone decides exit: any non-2xx exits 22 without retry; a 2xx that cannot be parsed as a proposal response is olive:unavailable",
   "security": "Liam sends no Authorization header; nono-proxy injects the session agent credential."
 }

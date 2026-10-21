@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Liam run record (design spec 8.1, v0.4.1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "agent_id", "agent_version", "started_at", "ended_at", "outcome", "nono", "purpose", "party_ref_hash", "answer", "proposal", "log_sha256"],
+  "properties": {
+    "run_id": {"type": "string", "minLength": 1},
+    "agent_id": {"type": "string"}, "agent_version": {"type": "string"},
+    "started_at": {"type": "integer"}, "ended_at": {"type": "integer"},
+    "outcome": {"type": "string", "minLength": 1},
+    "nono": {
+      "type": "object", "additionalProperties": false,
+      "required": ["session_id", "profile_version", "token_arm", "receipt_integrity", "agent_key_id", "layers_outside_expectancy_scope"],
+      "properties": {
+        "session_id": {"type": "string", "minLength": 1}, "profile_version": {"type": "integer"},
+        "token_arm": {"type": "string"}, "receipt_integrity": {"type": "string"}, "agent_key_id": {"type": "string"},
+        "layers_outside_expectancy_scope": {"type": "array", "items": {"type": "array", "prefixItems": [{"type": "string"}, {"type": "string"}], "minItems": 2, "maxItems": 2}}
+      }
+    },
+    "purpose": {"type": "string"},
+    "party_ref_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "answer": {
+      "description": "null unless hometown answered; failed-olive runs also carry it (assumption A7, additive)",
+      "oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["trace_id", "context_complete"], "properties": {"trace_id": {"type": "string"}, "context_complete": {"type": "boolean"}}}]
+    },
+    "proposal": {
+      "description": "null when nothing was submitted; reason is additive (D-07): a guarded code for refused_policy, otherwise null",
+      "oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["proposal_id", "status", "reason"], "properties": {"proposal_id": {"type": "string"}, "status": {"type": "string"}, "reason": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}]}}}]
+    },
+    "log_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

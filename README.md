@@ -1,5 +1,7 @@
 # Liam
 
+Version 0.4.1 (design and test specs v0.4.1; labels below read 0.4.1).
+
 Status: **POC implementation in progress; offline build and unit-contract
 checks pass.**
 
@@ -23,8 +25,9 @@ uses proxy-forced Hometown and Olive clients behind traits, validates proposals
 against the local stub catalog, and writes content-free local evidence. The
 wire contracts remain owner-authorized stubs: S-HT-1 and S-OL-1.
 
-The feature-gated `stubs` module provides local Hometown/Olive one-request
-fixtures and a forwarding capture proxy. It simulates nono-proxy injection at
+The feature-gated `stubs` module provides scripted local Hometown/Olive stubs
+(a sequence of canned replies per server, so retry and multi-step paths can be
+exercised) and a forwarding capture proxy. It simulates nono-proxy injection at
 the proxy boundary only; default release builds exclude it.
 Their machine-readable repository contracts are
 `contracts/hometown-answer.S-HT-1.json` and
@@ -55,6 +58,46 @@ unconfirmed.
   and `direct_gateway` controls are not yet confirmed as implemented.
 - A4: Nono's ratified agent-key minting, service injection, and detection
   behavior are not yet confirmed as implemented.
+
+## v0.4.1 conformance notes
+
+Assumption numbering note: A1-A4 above follow design spec section 13. The
+items below that the conformance phase calls A3/A4/A5/A7 are implementation
+assumptions of this repository, labelled "conformance A#" to avoid the clash;
+each is recorded here for user review and none is a confirmed upstream fact.
+
+- A1/A2 status: S-HT-1 and S-OL-1 are still owner-authorized stub contracts.
+  The v0.4.1 shapes (four-key proposal, `{"error": code}` bodies, guard
+  pattern `^[a-z][a-z0-9_]{0,63}$`, HTTP status decides retry and exit) are
+  stated in the two contract JSON files. Spec A5 (nono-proxy puts the IPv4
+  literal `http://127.0.0.1:<port>` in `HTTPS_PROXY`/`HTTP_PROXY`) is
+  **unverified until Phase 2** (nono contract diff).
+- D-03: `contracts/catalog-0.4.json` is a stub catalog shape carrying
+  `parameters_schema` only (no `required_parameters`). The real olive catalog
+  shape is checked at the Phase 4 contract diff.
+- D-04: deviation beyond design spec 7.3: a hometown proposal whose
+  `party_ref` does not match the requested party is suppressed with reason
+  `schema`. It is suppress-only (Liam never rewrites the proposal), so D15
+  still holds.
+- D-07 (additive): the run record's `proposal` carries `reason` (a guarded
+  code for `refused_policy`, otherwise `null`). Conformance A7 (additive): a
+  run that failed at olive also records `answer {trace_id, context_complete}`.
+  Both are in `contracts/run-record.schema.json`.
+- Conformance A3: a non-conforming hometown response carrying two proposals is
+  modelled as a proposal array; the first is used, the rest are ignored and
+  logged as `proposal.suppressed` reason `limit`. Pending confirmation.
+- Conformance A4: any hometown 403, including one without a usable error
+  body, is classed as a purpose refusal (exit 20); the reason falls back to
+  `hometown:403`. Spec 5.4 lists exit 20 only for `purpose_refused`.
+- Conformance A5: an unparseable hometown 200 is `hometown:unavailable`
+  without retry; an olive 2xx that is not a valid proposal response is
+  `olive:unavailable`.
+- Harness limits: the local capture proxy and stubs use plain http with
+  absolute-form requests; HTTPS `CONNECT` tunnelling through nono-proxy is
+  not exercised locally and is left to the live phases.
+- Evidence note: `layers_outside_expectancy_scope` is written as `[id, status]`
+  pairs, whereas design spec 8.1 sketches `{id, status}` objects. The schema
+  describes the actual output; flagged for owner review.
 
 ## Vocabulary deviation
 

@@ -1,5 +1,6 @@
 {
   "version": "0.4",
+  "note": "Stub catalog shape (A2): parameters_schema only, no required_parameters. The real olive catalog shape is checked at the Phase 4 contract diff.",
   "action_id_format": "^[a-z0-9_.]+@[0-9]+$",
   "actions": [
     {"action_type": "crm.case_note@1", "parameters_schema": {"type": "object", "properties": {"note": {"type": "string", "maxLength": 2000}}, "required": ["note"], "additionalProperties": false}},

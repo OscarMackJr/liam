@@ -1,6 +1,9 @@
 {
-  "contract": "S-HT-1", "status": "owner-authorized stub",
-  "request": {"method": "POST", "path": "/v1/agent/answer", "required": ["party_ref", "question", "purpose", "run_id", "nono_session_id", "step_role"]},
-  "response": {"required": ["trace_id", "answer", "context_complete", "proposal"], "proposal": ["action_type", "party_ref", "parameters", "justification"]},
+  "contract": "S-HT-1", "status": "owner-authorized stub", "version": "0.4.1",
+  "request": {"method": "POST", "path": "/v1/agent/answer", "required": ["party_ref", "question", "purpose", "run_id", "nono_session_id", "step_role"], "exactly_these_fields": true, "question_length": "1..4000"},
+  "response": {"required": ["trace_id", "answer", "context_complete", "proposal"], "proposal": ["action_type", "party_ref", "parameters", "justification"], "proposal_rule": "null or an object with exactly these four keys and no others; at most one proposal; Liam never modifies it (D15)", "extra_top_level_keys": "ignored"},
+  "error_body": {"shape": {"error": "<code>"}, "code_guard_pattern": "^[a-z][a-z0-9_]{0,63}$", "fallback": "missing, unparseable or guard-failing body gives hometown:<status>"},
+  "error_codes": ["no_injected_key", "key_inactive", "purpose_refused", "invalid_request", "run_conflict", "agent_not_registered", "party_not_found", "trace_not_saved", "context_unavailable", "unavailable", "deadline"],
+  "status_decides": "HTTP status alone decides retry and exit code: 5xx and timeout retry once then exit 21 hometown:unavailable; every 4xx fails without retry; the body only supplies the reason code",
   "security": "Liam sends no Authorization header; nono-proxy injects the session agent credential."
 }
