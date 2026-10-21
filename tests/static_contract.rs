@@ -223,7 +223,12 @@ fn tc_net_03_single_proxy_client_constructor() {
         let n = count_token(&s.code, "Client::builder");
         if is_client_mod(&path) {
             assert_eq!(n, 1, "exactly one Client::builder expected");
-            for needle in ["no_proxy()", "Proxy::all(", "dns_resolver("] {
+            for needle in [
+                "no_proxy()",
+                "Proxy::all(",
+                "dns_resolver(",
+                "redirect(reqwest::redirect::Policy::none())",
+            ] {
                 assert!(s.code.contains(needle), "clients/mod.rs missing {needle}");
             }
         } else {

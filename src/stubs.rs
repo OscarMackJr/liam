@@ -576,6 +576,7 @@ pub struct Reply {
     status: u16,
     body: String,
     delay: Option<Duration>,
+    location: Option<String>,
 }
 impl Reply {
     pub fn json(status: u16, body: &str) -> Self {
@@ -583,6 +584,7 @@ impl Reply {
             status,
             body: body.to_owned(),
             delay: None,
+            location: None,
         }
     }
     pub fn empty(status: u16) -> Self {
@@ -590,6 +592,16 @@ impl Reply {
             status,
             body: String::new(),
             delay: None,
+            location: None,
+        }
+    }
+    /// A 3xx reply carrying a `Location` header (redirect tests).
+    pub fn redirect(status: u16, location: &str) -> Self {
+        Self {
+            status,
+            body: String::new(),
+            delay: None,
+            location: Some(location.to_owned()),
         }
     }
     pub fn delayed(mut self, delay: Duration) -> Self {
@@ -669,6 +681,13 @@ impl ScriptedStub {
                     tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
                 {
                     response = response.with_header(header);
+                }
+                if let Some(location) = reply.location.as_deref() {
+                    if let Ok(header) =
+                        tiny_http::Header::from_bytes(&b"Location"[..], location.as_bytes())
+                    {
+                        response = response.with_header(header);
+                    }
                 }
                 let _ = request.respond(response);
             }
@@ -825,9 +844,12 @@ fn handle_proxy_request(shared: &ProxyShared, mut request: tiny_http::Request) {
         return;
     };
 
-    let forwarded = (|| -> Result<(u16, Vec<u8>), String> {
+    type Forwarded = (u16, Vec<u8>, Option<String>);
+    let forwarded = (|| -> Result<Forwarded, String> {
+        // Relay a 3xx as-is so the redirect decision stays with Liam.
         let client = reqwest::blocking::Client::builder()
             .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|_| "forward client build".to_owned())?;
         let method = reqwest::Method::from_bytes(method.as_bytes())
@@ -844,15 +866,26 @@ fn handle_proxy_request(shared: &ProxyShared, mut request: tiny_http::Request) {
             .send()
             .map_err(|_| "forward send".to_owned())?;
         let status = response.status().as_u16();
+        let location = response
+            .headers()
+            .get("Location")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
         let bytes = response
             .bytes()
             .map_err(|_| "forward read".to_owned())?
             .to_vec();
-        Ok((status, bytes))
+        Ok((status, bytes, location))
     })();
     match forwarded {
-        Ok((status, bytes)) => {
-            let _ = request.respond(Response::from_data(bytes).with_status_code(status));
+        Ok((status, bytes, location)) => {
+            let mut response = Response::from_data(bytes).with_status_code(status);
+            if let Some(header) = location.and_then(|location| {
+                tiny_http::Header::from_bytes(&b"Location"[..], location.as_bytes()).ok()
+            }) {
+                response = response.with_header(header);
+            }
+            let _ = request.respond(response);
         }
         Err(reason) => {
             locked(&shared.errors).push(reason);

@@ -49,6 +49,8 @@ pub fn build_proxy_client(proxy: &str) -> Result<ProxyClient, reqwest::Error> {
     let client = Client::builder()
         .no_proxy()
         .proxy(Proxy::all(proxy)?)
+        // One call is one request (design §3.3, §7.4, D12): never follow a redirect.
+        .redirect(reqwest::redirect::Policy::none())
         .dns_resolver(Arc::clone(&resolver))
         .build()?;
     Ok(ProxyClient { client, resolver })

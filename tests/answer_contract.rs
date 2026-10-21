@@ -440,3 +440,42 @@ fn tc_fail_08_transient_503_codes() {
         assert_eq!(hometown.count(), 2, "{code}");
     }
 }
+
+// ---- Redirects (design §3.3 "exactly one answer request", §7.4 no retry, D12) ----
+
+#[test]
+fn redirects_are_not_followed_by_either_client() {
+    // hometown 307/308 to the gateway host or back to itself: one request, exit 21
+    // with the status reason, and nothing reaches the gateway.
+    for status in [307u16, 308, 302] {
+        let olive = idle();
+        let probe = ScriptedStub::new(vec![Reply::json(200, ANSWER)]);
+        for location in [
+            "http://gateway.invalid/v1/agent/answer".to_owned(),
+            format!("{}/v1/agent/answer", probe.base_url()),
+        ] {
+            let hometown = ScriptedStub::new(vec![Reply::redirect(status, &location)]);
+            let case = run_case(&hometown, &olive, "question", 2);
+            case.assert_failed(21, &format!("hometown:{status}"));
+            assert_eq!(hometown.count(), 1, "{status} {location}");
+            let stats = case.proxy.stats();
+            assert_eq!(stats.hometown_hits, 1);
+            assert_eq!(stats.gateway_attempts, 0);
+            assert_eq!(stats.olive_hits, 0);
+            assert_eq!(case.outcome(), "hometown_failed");
+        }
+        assert_eq!(probe.count(), 0);
+    }
+
+    // olive 307 to the gateway host: one olive request, exit 22 olive:unavailable.
+    let hometown = ScriptedStub::new(vec![Reply::json(200, &proposal_answer())]);
+    let olive = ScriptedStub::new(vec![Reply::redirect(
+        307,
+        "http://gateway.invalid/v1/proposals",
+    )]);
+    let case = run_case(&hometown, &olive, "question", 2);
+    case.assert_failed(22, "olive:unavailable");
+    assert_eq!(olive.count(), 1);
+    assert_eq!(case.proxy.stats().gateway_attempts, 0);
+    assert!(case.stdout().starts_with("stub answer\n"));
+}
