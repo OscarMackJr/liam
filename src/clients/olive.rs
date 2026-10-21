@@ -80,6 +80,12 @@ pub(crate) fn classify(status: u16, body: &[u8]) -> Result<ProposalResponse, Oli
         if !parsed.reason.as_deref().is_some_and(guard_code) {
             parsed.reason = None;
         }
+        // S-OL-1/§7.2: refused_policy carries a reason code. Without a guarded
+        // one it is not a valid proposal response, so the log event and the
+        // run record never disagree about the reason.
+        if parsed.status == "refused_policy" && parsed.reason.is_none() {
+            return Err(OliveError::InvalidResponse);
+        }
         return Ok(parsed);
     }
     if status >= 500 || !(400..500).contains(&status) {
@@ -176,8 +182,23 @@ mod tests {
     }
 
     #[test]
+    fn refused_policy_requires_a_guarded_reason() {
+        for body in [
+            &br#"{"proposal_id":"p","status":"refused_policy"}"#[..],
+            br#"{"proposal_id":"p","status":"refused_policy","reason":null}"#,
+            br#"{"proposal_id":"p","status":"refused_policy","reason":"Bad Text"}"#,
+            br#"{"proposal_id":"p","status":"refused_policy","reason":""}"#,
+        ] {
+            assert_eq!(
+                classify(200, body).unwrap_err(),
+                OliveError::InvalidResponse
+            );
+        }
+    }
+
+    #[test]
     fn status_must_be_a_vocabulary_outcome() {
-        let body = |s: &str| format!(r#"{{"proposal_id":"p","status":"{s}"}}"#);
+        let body = |s: &str| format!(r#"{{"proposal_id":"p","status":"{s}","reason":"r"}}"#);
         for bad in [
             "",
             "Approved",

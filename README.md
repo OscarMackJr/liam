@@ -100,7 +100,9 @@ each is recorded here for user review and none is a confirmed upstream fact.
   vocabulary's `action_outcomes` (design spec 7.2), and a 202 must be
   `awaiting_approval`. A 200 idempotent replay is recorded as the returned
   status (TC-ACT-09). The run record schema pins `proposal.status` to the
-  same list.
+  same list. A `refused_policy` without a guarded reason code is also not a
+  valid proposal response. A hometown 200 without the required `proposal`
+  key (S-HT-1; `null` when there is none) is `hometown:unavailable`.
 - Harness limits: the local capture proxy and stubs use plain http with
   absolute-form requests; HTTPS `CONNECT` tunnelling through nono-proxy is
   not exercised locally and is left to the live phases.

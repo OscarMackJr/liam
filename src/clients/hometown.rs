@@ -20,8 +20,17 @@ pub struct AnswerResponse {
     pub trace_id: String,
     pub answer: String,
     pub context_complete: bool,
-    #[serde(default)]
+    #[serde(deserialize_with = "required_proposal")]
     pub proposal: Option<Box<RawValue>>,
+}
+/// S-HT-1 lists `proposal` as required and design §5.3 says it "is always
+/// present, and null when there is none": JSON null is None, a missing key is
+/// a parse error (InvalidResponse). Using deserialize_with without a default
+/// stops serde from treating the absent Option as None.
+fn required_proposal<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Box<RawValue>>, D::Error> {
+    Option::<Box<RawValue>>::deserialize(deserializer)
 }
 /// Strings hold the full reason line text, e.g. `hometown:purpose_refused`.
 #[derive(Debug, PartialEq, Eq)]
@@ -151,6 +160,17 @@ mod tests {
             HometownError::InvalidResponse.outcome(),
             "hometown_unavailable"
         );
+    }
+
+    #[test]
+    fn proposal_key_is_required_but_may_be_null() {
+        let missing = br#"{"trace_id":"t","answer":"a","context_complete":true}"#;
+        assert!(serde_json::from_slice::<AnswerResponse>(missing).is_err());
+        let null = br#"{"trace_id":"t","answer":"a","context_complete":true,"proposal":null}"#;
+        assert!(serde_json::from_slice::<AnswerResponse>(null)
+            .unwrap()
+            .proposal
+            .is_none());
     }
 
     #[test]

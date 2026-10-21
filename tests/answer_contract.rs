@@ -124,7 +124,7 @@ fn tc_ans_01_answer_without_proposal() {
 
 #[test]
 fn tc_ans_02_incomplete_context_notice() {
-    let body = r#"{"trace_id":"trace-stub-1","answer":"stub answer","context_complete":false}"#;
+    let body = r#"{"trace_id":"trace-stub-1","answer":"stub answer","context_complete":false,"proposal":null}"#;
     let hometown = ScriptedStub::new(vec![Reply::json(200, body)]);
     let olive = idle();
     let case = run_case(&hometown, &olive, "question", 2);
@@ -478,4 +478,35 @@ fn redirects_are_not_followed_by_either_client() {
     assert_eq!(olive.count(), 1);
     assert_eq!(case.proxy.stats().gateway_attempts, 0);
     assert!(case.stdout().starts_with("stub answer\n"));
+}
+
+// ---- Contract-required fields (S-HT-1 response.required; S-OL-1 refused_policy reason) ----
+
+#[test]
+fn missing_required_fields_are_invalid_responses() {
+    // hometown 200 without `proposal`: not an S-HT-1 answer, no retry, exit 21
+    let body = r#"{"trace_id":"trace-stub-1","answer":"stub answer","context_complete":true}"#;
+    let hometown = ScriptedStub::new(vec![Reply::json(200, body)]);
+    let olive = idle();
+    let case = run_case(&hometown, &olive, "question", 2);
+    case.assert_failed(21, "hometown:unavailable");
+    assert_eq!(hometown.count(), 1);
+    assert_eq!(case.proxy.stats().olive_hits, 0);
+    assert!(case.stdout().is_empty());
+
+    // olive 200 refused_policy without a guarded reason: exit 22, nothing recorded as a refusal
+    for olive_body in [
+        r#"{"proposal_id":"prop-1","status":"refused_policy"}"#,
+        r#"{"proposal_id":"prop-1","status":"refused_policy","reason":"Free Text"}"#,
+    ] {
+        let hometown = ScriptedStub::new(vec![Reply::json(200, &proposal_answer())]);
+        let olive = ScriptedStub::new(vec![Reply::json(200, olive_body)]);
+        let case = run_case(&hometown, &olive, "question", 2);
+        case.assert_failed(22, "olive:unavailable");
+        assert_eq!(olive.count(), 1);
+        let (record, log) = read_run_record(&case.runs);
+        assert!(record["proposal"].is_null(), "{record}");
+        let log = String::from_utf8_lossy(&log);
+        assert!(!log.contains("proposal.refused") && !log.contains("Free Text"));
+    }
 }
