@@ -42,7 +42,7 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-05-PLAN.md — RawValue pass-through, guarded error codes, task validation
+- [x] 01-05-PLAN.md — RawValue pass-through, guarded error codes, task validation
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. v0.4.1 Conformance | 4/12 | In Progress|  |
+| 1. v0.4.1 Conformance | 5/12 | In Progress|  |
 | 2. Real nono Session | 0/TBD | Not started | - |
 | 3. Live hometown and popeye | 0/TBD | Not started | - |
 | 4. Live olive | 0/TBD | Not started | - |
