@@ -1,3 +1,5 @@
 # Cargo vendor checksums cover exact file bytes.  Do not let Windows checkout
 # line-ending conversion alter vendored crate sources.
 vendor/** -text
+# Spec bytes and hashes must stay stable regardless of autocrlf.
+specs/** -text
