@@ -401,6 +401,7 @@ fn tc_net_05_proxy_environment_variants() {
     let p6 = v6.as_ref().map_or(p, |l| l.local_addr().unwrap().port());
 
     let loopback = format!("http://127.0.0.1:{p}");
+    #[allow(clippy::type_complexity)]
     let cases: Vec<(String, Vec<(&str, String)>, &str)> = vec![
         (
             format!("http://localhost:{p}"),

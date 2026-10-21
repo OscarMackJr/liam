@@ -1,4 +1,6 @@
 #![cfg(feature = "stubs")]
+// Windows-only target: clearing the read-only attribute is the intended operation.
+#![allow(clippy::permissions_set_readonly_false)]
 //! Startup self-check TCs (TC-START-01..05, 08..16) driven by mutated copies of
 //! the stub record pair. Each mutation is applied to the JSON on disk, the
 //! files are re-protected read-only, and liam is run as a process.
