@@ -19,6 +19,7 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 - [ ] **CONF-08**: A local gateway-trap harness covers TC-NET-04. A normal run makes zero hits on the trap. A run with the stub-only gateway-attempt flag is refused by the test proxy, and its failure is recorded content-free (REQ-LIAM-17)
 - [ ] **CONF-09**: An answer carrying command text, extra keys or shell strings is parsed as data against S-HT-1. Extra keys are ignored and nothing is executed (REQ-LIAM-12; TC-SEC-03)
 - [ ] **CONF-10**: RESULTS.md records a measurement (n of n, tag, Liam commit, limits) for every v0.4.1 TC that can run locally. TC-START-07 (DSSE) is marked deferred
+- [ ] **CONF-11**: `liam.toml` pins the canonical vocabulary SHA-256 (`60a44f00…`) of the vendored `vocabulary.yaml` instead of the placeholder, so TC-LVOC-01/02 pass against the canonical file (REQ-LIAM-06)
 
 ### Real nono Session (this dev machine)
 
@@ -68,13 +69,37 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmapper) | | |
+| CONF-01 | Phase 1 | Pending |
+| CONF-02 | Phase 1 | Pending |
+| CONF-03 | Phase 1 | Pending |
+| CONF-04 | Phase 1 | Pending |
+| CONF-05 | Phase 1 | Pending |
+| CONF-06 | Phase 1 | Pending |
+| CONF-07 | Phase 1 | Pending |
+| CONF-08 | Phase 1 | Pending |
+| CONF-09 | Phase 1 | Pending |
+| CONF-10 | Phase 1 | Pending |
+| CONF-11 | Phase 1 | Pending |
+| NONO-01 | Phase 2 | Pending |
+| NONO-02 | Phase 2 | Pending |
+| NONO-03 | Phase 2 | Pending |
+| NONO-04 | Phase 2 | Pending |
+| NONO-05 | Phase 2 | Pending |
+| LIVE-01 | Phase 3 | Pending |
+| LIVE-02 | Phase 3 | Pending |
+| LIVE-03 | Phase 4 | Pending |
+| LIVE-04 | Phase 4 | Pending |
+| LIVE-05 | Phase 3 | Pending |
+| E2E-01 | Phase 5 | Pending |
+| E2E-02 | Phase 5 | Pending |
+| E2E-03 | Phase 5 | Pending |
+| E2E-04 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24 ⚠️
+- v1 requirements: 25 total
+- Mapped to phases: 25
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-21*
-*Last updated: 2026-10-21 after initial definition*
+*Last updated: 2026-10-21 after roadmap creation*
