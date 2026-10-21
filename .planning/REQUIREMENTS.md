@@ -12,11 +12,11 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 - [x] **CONF-01**: Liam forwards hometown's proposal to olive unchanged. The JCS SHA-256 of the four proposal fields olive receives equals the hash of what hometown returned, including nested objects, non-ASCII text, fractional numbers and unordered keys (D15; REQ-LIAM-19; TC-ACT-07, TC-ACT-03)
 - [x] **CONF-02**: A hometown error exits 21 with `hometown:<code>` taken from the `{"error": "<code>"}` body, falling back to `hometown:<status>`. 429 `rate_limited` is not retried; a 5xx with an empty body is retried once, then exits `hometown:unavailable` (D16; REQ-LIAM-20; TC-ANS-05, TC-ANS-07)
 - [x] **CONF-03**: olive errors exit 22 with `olive:<code>` per §7.4, with no retry. A 5xx or timeout gives `olive:unavailable`. A 200 `refused_policy` (with its reason) and a 200 idempotent replay are recorded in the run record and exit 0 (D16; REQ-LIAM-08/20; TC-ACT-08, TC-ACT-09)
-- [ ] **CONF-04**: A `--question` outside 1..4000 Unicode scalar values exits 11 `input:question_length`. No request is sent and no run record is written (D17; REQ-LIAM-21; TC-ANS-06)
+- [x] **CONF-04**: A `--question` outside 1..4000 Unicode scalar values exits 11 `input:question_length`. No request is sent and no run record is written (D17; REQ-LIAM-21; TC-ANS-06)
 - [ ] **CONF-05**: The S-HT-1 and S-OL-1 stubs, the `contracts/` schemas and README match v0.4.1 §5 and §7: the four-key proposal, the new hometown error codes, olive's v1 responses, and A1/A2/A5 status recorded
 - [ ] **CONF-06**: Version labels read 0.4.1 in `Cargo.toml`, `liam.toml` and the run record's `agent_version`. The profile version in `profiles/liam.nono.toml` matches the type and value Liam validates. Spec files have a line-ending policy in `.gitattributes`
 - [ ] **CONF-07**: An automated TC-NET-03 static check finds zero `std::net`, `ToSocketAddrs`, `lookup_host`, `TcpStream`, Winsock calls, second client constructors or gateway host/path references in Liam's own source outside the single client and the feature-gated stubs (REQ-LIAM-03)
-- [ ] **CONF-08**: A local gateway-trap harness covers TC-NET-04. A normal run makes zero hits on the trap. A run with the stub-only gateway-attempt flag is refused by the test proxy, and its failure is recorded content-free (REQ-LIAM-17)
+- [x] **CONF-08**: A local gateway-trap harness covers TC-NET-04. A normal run makes zero hits on the trap. A run with the stub-only gateway-attempt flag is refused by the test proxy, and its failure is recorded content-free (REQ-LIAM-17)
 - [x] **CONF-09**: An answer carrying command text, extra keys or shell strings is parsed as data against S-HT-1. Extra keys are ignored and nothing is executed (REQ-LIAM-12; TC-SEC-03)
 - [ ] **CONF-10**: RESULTS.md records a measurement (n of n, tag, Liam commit, limits) for every v0.4.1 TC that can run locally. TC-START-07 (DSSE) is marked deferred
 - [ ] **CONF-11**: `liam.toml` pins the canonical vocabulary SHA-256 (`60a44f00…`) of the vendored `vocabulary.yaml` instead of the placeholder, so TC-LVOC-01/02 pass against the canonical file (REQ-LIAM-06)
@@ -72,11 +72,11 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 | CONF-01 | Phase 1 | Complete |
 | CONF-02 | Phase 1 | Complete |
 | CONF-03 | Phase 1 | Complete |
-| CONF-04 | Phase 1 | Pending |
+| CONF-04 | Phase 1 | Complete |
 | CONF-05 | Phase 1 | Pending |
 | CONF-06 | Phase 1 | Pending |
 | CONF-07 | Phase 1 | Pending |
-| CONF-08 | Phase 1 | Pending |
+| CONF-08 | Phase 1 | Complete |
 | CONF-09 | Phase 1 | Complete |
 | CONF-10 | Phase 1 | Pending |
 | CONF-11 | Phase 1 | Pending |
