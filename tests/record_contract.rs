@@ -216,6 +216,13 @@ fn tc_evd_01_completed_record_matches_schema() {
     assert_eq!(record["log_sha256"], sha256_hex(&log));
     assert!(!record["nono"]["session_id"].as_str().unwrap().is_empty());
     assert!(!record["run_id"].as_str().unwrap().is_empty());
+    for layer in record["nono"]["layers_outside_expectancy_scope"]
+        .as_array()
+        .unwrap()
+    {
+        assert!(layer.is_object(), "spec 8.1: {{id, status}} objects");
+        assert!(layer["id"].is_string() && layer["status"].is_string());
+    }
     assert!(last_line(&log).contains("run.completed"));
 }
 
@@ -340,4 +347,40 @@ fn hostile_event_field_stays_one_json_line() {
         let v: Value = serde_json::from_str(line).unwrap();
         assert_ne!(v["event"], "forged");
     }
+}
+
+#[test]
+fn layer_entries_are_id_status_objects() {
+    let dir = std::env::temp_dir().join(format!("liam-record-{}", uuid::Uuid::now_v7()));
+    let mut evidence = Evidence::new(dir.to_string_lossy().into_owned(), "layers".into(), 1);
+    let session = liam::receipt::ValidatedSession {
+        session_id: "s".into(),
+        agent_key_id: "k".into(),
+        token_arm: "A".into(),
+        layers_outside_expectancy_scope: vec![(
+            "RestrictedToken".into(),
+            liam::receipt::LayerStatus::Unconfirmed,
+        )],
+    };
+    evidence
+        .finish(
+            &session,
+            "liam",
+            "0.4.1",
+            4,
+            "p",
+            "x",
+            "completed",
+            None,
+            None,
+            2,
+        )
+        .unwrap();
+    let record: Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("layers.json")).unwrap()).unwrap();
+    validate_record(&record);
+    assert_eq!(
+        record["nono"]["layers_outside_expectancy_scope"],
+        serde_json::json!([{"id": "RestrictedToken", "status": "Unconfirmed"}])
+    );
 }

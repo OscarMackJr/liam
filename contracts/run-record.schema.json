@@ -15,7 +15,7 @@
       "properties": {
         "session_id": {"type": "string", "minLength": 1}, "profile_version": {"type": "integer"},
         "token_arm": {"type": "string"}, "receipt_integrity": {"type": "string"}, "agent_key_id": {"type": "string"},
-        "layers_outside_expectancy_scope": {"type": "array", "items": {"type": "array", "prefixItems": [{"type": "string"}, {"type": "string"}], "minItems": 2, "maxItems": 2}}
+        "layers_outside_expectancy_scope": {"type": "array", "items": {"type": "object", "required": ["id", "status"], "additionalProperties": false, "properties": {"id": {"type": "string"}, "status": {"type": "string"}}}}
       }
     },
     "purpose": {"type": "string"},

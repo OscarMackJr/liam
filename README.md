@@ -96,9 +96,8 @@ each is recorded here for user review and none is a confirmed upstream fact.
 - Harness limits: the local capture proxy and stubs use plain http with
   absolute-form requests; HTTPS `CONNECT` tunnelling through nono-proxy is
   not exercised locally and is left to the live phases.
-- Evidence note: `layers_outside_expectancy_scope` is written as `[id, status]`
-  pairs, whereas design spec 8.1 sketches `{id, status}` objects. The schema
-  describes the actual output; flagged for owner review.
+- Evidence note: `layers_outside_expectancy_scope` is written as a list of
+  `{"id", "status"}` objects, as in design spec 8.1.
 
 ## Vocabulary deviation
 

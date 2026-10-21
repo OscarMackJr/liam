@@ -29,7 +29,27 @@ struct NonoRecord<'a> {
     token_arm: &'a str,
     receipt_integrity: &'static str,
     agent_key_id: &'a str,
+    #[serde(serialize_with = "layer_objects")]
     layers_outside_expectancy_scope: &'a [(String, crate::receipt::LayerStatus)],
+}
+fn layer_objects<S: serde::Serializer>(
+    layers: &&[(String, crate::receipt::LayerStatus)],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    #[derive(Serialize)]
+    struct Layer<'a> {
+        id: &'a str,
+        status: crate::receipt::LayerStatus,
+    }
+    let mut seq = serializer.serialize_seq(Some(layers.len()))?;
+    for (id, status) in layers.iter() {
+        seq.serialize_element(&Layer {
+            id,
+            status: *status,
+        })?;
+    }
+    seq.end()
 }
 #[derive(Serialize)]
 struct AnswerRecord<'a> {
@@ -182,6 +202,11 @@ mod tests {
         let record = std::fs::read_to_string(dir.join("run-1.json")).unwrap();
         let log = std::fs::read_to_string(dir.join("run-1.jsonl")).unwrap();
         assert!(!record.contains("CANARY-7f3a") && !log.contains("CANARY-7f3a"));
+        let parsed: serde_json::Value = serde_json::from_str(&record).unwrap();
+        assert_eq!(
+            parsed["nono"]["layers_outside_expectancy_scope"],
+            serde_json::json!([{"id": "RestrictedToken", "status": "Unconfirmed"}])
+        );
     }
 
     fn session() -> ValidatedSession {
