@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-21T20:38:27.697Z"
+last_updated: "2026-10-21T20:46:43.166Z"
 last_activity: 2026-10-21
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-10-21)
 ## Current Position
 
 Phase: 01 (v0-4-1-conformance) — EXECUTING
-Plan: 6 of 12
+Plan: 7 of 12
 Status: Ready to execute
 Last activity: 2026-10-21
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [████████░░] 75%
 | Phase 01 P07 | 25min | 1 tasks | 1 files |
 | Phase 01 P08 | 30min | 2 tasks | 2 files |
 | Phase 01 P09 | 25min | 2 tasks | 6 files |
+| Phase 01 P10 | 30min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-08: JCS test digits via std {:e}; bad-id proposals report not_in_catalog since catalog lookup precedes format check
 - [Phase 01]: 01-09: run-record schema added (no change-control conflict); layers_outside_expectancy_scope serialized as pairs vs spec 8.1 objects flagged for owner
 - [Phase 01]: Only 403 purpose_refused maps to exit 20; other 403 exit 21. Layer entries serialized as {id,status} objects (spec 8.1)
+- [Phase 01]: 01-10: numeric key_id reports agent_record:parse vs spec key_id (defect, test ignored); TC-KEY-03 scanner has named exceptions
 
 ### Pending Todos
 
