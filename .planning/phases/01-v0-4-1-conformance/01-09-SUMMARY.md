@@ -53,3 +53,10 @@ None.
 - clippy `--all-targets --all-features -D warnings`, `cargo fmt --check`, `cargo test --locked --offline --features stubs` all green; vendor/ untouched.
 
 ## Self-Check: PASSED
+
+## Post-plan fixes
+
+User-decided conformance fixes against spec v0.4.1, made after this plan:
+
+- `cdbfade` fix(01-09): map non-purpose_refused 403 to exit 21 per spec 5.4. Only a 403 with body error code `purpose_refused` yields exit 20; other 403s take the "Other 4xx" path (exit 21, `hometown:<code>` or `hometown:403`). README conformance A4 updated.
+- `e8a0ea3` fix(01-09): write layer entries as {id, status} objects per spec 8.1. `nono.layers_outside_expectancy_scope` is now a list of objects; run-record schema, README and tests updated.
