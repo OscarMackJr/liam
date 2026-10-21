@@ -86,9 +86,10 @@ each is recorded here for user review and none is a confirmed upstream fact.
 - Conformance A3: a non-conforming hometown response carrying two proposals is
   modelled as a proposal array; the first is used, the rest are ignored and
   logged as `proposal.suppressed` reason `limit`. Pending confirmation.
-- Conformance A4: any hometown 403, including one without a usable error
-  body, is classed as a purpose refusal (exit 20); the reason falls back to
-  `hometown:403`. Spec 5.4 lists exit 20 only for `purpose_refused`.
+- Conformance A4 (resolved): only a hometown 403 whose body error code is
+  `purpose_refused` is a purpose refusal (exit 20). Any other 403, including
+  one without a usable error body, follows the "Other 4xx" row of spec 5.4:
+  no retry, exit 21 with `hometown:<code>` or `hometown:403`.
 - Conformance A5: an unparseable hometown 200 is `hometown:unavailable`
   without retry; an olive 2xx that is not a valid proposal response is
   `olive:unavailable`.

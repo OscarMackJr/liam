@@ -152,13 +152,22 @@ fn tc_ans_03_purpose_refused() {
 }
 
 #[test]
-fn tc_ans_03_purpose_refused_empty_body_uses_status() {
+fn tc_ans_03_other_403_is_not_purpose_refusal() {
     let hometown = ScriptedStub::new(vec![Reply::empty(403)]);
     let olive = idle();
     let case = run_case(&hometown, &olive, "question", 2);
-    case.assert_failed(20, "hometown:403");
+    case.assert_failed(21, "hometown:403");
     assert_eq!(hometown.count(), 1);
-    assert_eq!(case.outcome(), "purpose_refused");
+    assert_eq!(case.outcome(), "hometown_failed");
+}
+
+#[test]
+fn tc_ans_03_other_coded_403_exits_21() {
+    let hometown = ScriptedStub::error(403, "forbidden_thing");
+    let olive = idle();
+    let case = run_case(&hometown, &olive, "question", 2);
+    case.assert_failed(21, "hometown:forbidden_thing");
+    assert_eq!(hometown.count(), 1);
 }
 
 #[test]
@@ -398,7 +407,7 @@ fn tc_fail_06_olive_timeout_exits_22_unavailable() {
 
 #[test]
 fn tc_fail_07_every_failure_is_one_stderr_line() {
-    for (status, code) in [(403u16, 20), (401, 21), (500, 21), (429, 21)] {
+    for (status, code) in [(403u16, 21), (401, 21), (500, 21), (429, 21)] {
         let hometown = ScriptedStub::new(vec![Reply::empty(status)]);
         let olive = idle();
         let case = run_case(&hometown, &olive, CANARY, 2);

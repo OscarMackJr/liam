@@ -46,7 +46,7 @@ impl HometownError {
 }
 /// Status alone decides the class; the body only supplies a guarded reason.
 pub(crate) fn classify(status: u16, body: &[u8]) -> HometownError {
-    if status == 403 {
+    if status == 403 && super::error_code(body).as_deref() == Some("purpose_refused") {
         return HometownError::PurposeRefused(reason("hometown", status, body));
     }
     if status >= 500 {
@@ -109,9 +109,11 @@ mod tests {
             classify(403, br#"{"error":"purpose_refused"}"#),
             HometownError::PurposeRefused("hometown:purpose_refused".into())
         );
+        assert_eq!(classify(403, b""), rej(403, "hometown:403"));
+        assert_eq!(classify(403, b"not json"), rej(403, "hometown:403"));
         assert_eq!(
-            classify(403, b""),
-            HometownError::PurposeRefused("hometown:403".into())
+            classify(403, br#"{"error":"forbidden_thing"}"#),
+            rej(403, "hometown:forbidden_thing")
         );
         assert_eq!(classify(401, b"{}"), rej(401, "hometown:401"));
         assert_eq!(
@@ -140,7 +142,11 @@ mod tests {
             "hometown_key_inactive"
         );
         assert_eq!(classify(404, b"").outcome(), "hometown_failed");
-        assert_eq!(classify(403, b"").outcome(), "purpose_refused");
+        assert_eq!(classify(403, b"").outcome(), "hometown_failed");
+        assert_eq!(
+            classify(403, br#"{"error":"purpose_refused"}"#).outcome(),
+            "purpose_refused"
+        );
         assert_eq!(
             HometownError::InvalidResponse.outcome(),
             "hometown_unavailable"
