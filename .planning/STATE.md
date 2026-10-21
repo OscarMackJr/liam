@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-21T19:32:12.229Z"
+last_updated: "2026-10-21T19:32:23.535Z"
 last_activity: 2026-10-21
 progress:
   total_phases: 5
@@ -52,6 +52,7 @@ Progress: [██████░░░░] 58%
 
 *Updated after each plan completion*
 | Phase 01 P06 | 20min | 2 tasks | 3 files |
+| Phase 01 P07 | 25min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,7 @@ Recent decisions affecting current work:
 - [Roadmap]: Contract-diff stop gates open the phase that depends on them: NONO-01 and NONO-02/O7 (Phase 2), LIVE-01 (Phase 3), LIVE-03 (Phase 4). A mismatch updates the contract table + README and halts for human review
 - [Roadmap]: DSSE (TC-START-07) remains deferred (DEF-01); Phase 1 records it as deferred in RESULTS.md
 - [Phase 01]: 01-06: hometown retry via RetryOnce adapter; gateway event name const in stubs.rs
+- [Phase 01]: 01-07: long TC-FAIL-04 asserts Liam output only; TestProxy 30s forward timeout limits real 90s coverage
 
 ### Pending Todos
 
