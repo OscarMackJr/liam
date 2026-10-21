@@ -210,6 +210,16 @@ fn main() {
             if let Some((proposal_id, status)) = &result.proposal {
                 println!("Proposal {proposal_id}: {status}");
             }
+            answer_received(
+                &mut evidence,
+                &result.trace_id,
+                result.context_complete,
+                result.has_proposal,
+                result.latency_ms,
+            );
+            if result.validated {
+                evidence.event("proposal.validated");
+            }
             if let Some(reason) = result.suppressed {
                 evidence.event_with(
                     "proposal.suppressed",
@@ -226,7 +236,12 @@ fn main() {
             if let Some(submitted) = &result.submitted {
                 evidence.event_with(
                     "proposal.submitted",
-                    serde_json::json!({ "http_status": submitted.http_status }),
+                    serde_json::json!({
+                        "proposal_id": submitted.proposal_id,
+                        "status": submitted.status,
+                        "reason": submitted.reason,
+                        "http_status": submitted.http_status,
+                    }),
                 );
                 if submitted.status == "refused_policy" {
                     let reason = submitted.reason.clone().unwrap_or_default();
@@ -273,6 +288,7 @@ fn main() {
                 answer,
                 context_complete,
                 trace_id,
+                latency_ms,
                 ..
             } = &error
             {
@@ -280,6 +296,14 @@ fn main() {
                     println!("Notice: answer may be incomplete.");
                 }
                 println!("{answer}");
+                answer_received(
+                    &mut evidence,
+                    trace_id,
+                    *context_complete,
+                    true,
+                    *latency_ms,
+                );
+                evidence.event("proposal.validated");
                 answer_ids = Some((trace_id.as_str(), *context_complete));
             }
             if evidence
@@ -302,6 +326,25 @@ fn main() {
             fail(code, &reason)
         }
     }
+}
+
+/// `answer.received` (design §3.3 step 2): identifiers, flags and a duration only.
+fn answer_received(
+    evidence: &mut Evidence,
+    trace_id: &str,
+    context_complete: bool,
+    has_proposal: bool,
+    latency_ms: u64,
+) {
+    evidence.event_with(
+        "answer.received",
+        serde_json::json!({
+            "trace_id": trace_id,
+            "context_complete": context_complete,
+            "has_proposal": has_proposal,
+            "latency_ms": latency_ms,
+        }),
+    );
 }
 
 /// One mapping from task failures to (run outcome, exit code, reason line).

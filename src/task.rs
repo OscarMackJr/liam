@@ -5,15 +5,18 @@ use crate::clients::{
 };
 use serde::Deserialize;
 use serde_json::{value::RawValue, Value};
+use std::time::Instant;
 
 #[derive(Debug)]
 pub enum TaskError {
     Hometown(HometownError),
     Catalog,
+    /// The proposal passed validation (`proposal.validated`) and olive failed.
     Olive {
         answer: String,
         context_complete: bool,
         trace_id: String,
+        latency_ms: u64,
         error: OliveError,
     },
 }
@@ -21,6 +24,11 @@ pub struct TaskResult {
     pub answer: String,
     pub context_complete: bool,
     pub trace_id: String,
+    /// Content-free `answer.received` fields (design §3.3 step 2).
+    pub has_proposal: bool,
+    pub latency_ms: u64,
+    /// The proposal passed the §7.3 checks (`proposal.validated`).
+    pub validated: bool,
     pub proposal: Option<(String, String)>,
     pub submitted: Option<ProposalResponse>,
     pub suppressed: Option<&'static str>,
@@ -77,6 +85,7 @@ pub fn run(
     if catalog.version != catalog_version || !catalog.action_id_format_supported() {
         return Err(TaskError::Catalog);
     }
+    let started = Instant::now();
     let answer = hometown
         .answer(&AnswerRequest {
             party_ref,
@@ -87,6 +96,7 @@ pub fn run(
             step_role: "answer",
         })
         .map_err(TaskError::Hometown)?;
+    let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     let result = |proposal: Option<(String, String)>,
                   submitted: Option<ProposalResponse>,
                   suppressed: Option<&'static str>,
@@ -94,6 +104,9 @@ pub fn run(
         answer: answer.answer.clone(),
         context_complete: answer.context_complete,
         trace_id: answer.trace_id.clone(),
+        has_proposal: answer.proposal.is_some(),
+        latency_ms,
+        validated: submitted.is_some(),
         proposal,
         submitted,
         suppressed,
@@ -141,6 +154,7 @@ pub fn run(
             answer: answer.answer.clone(),
             context_complete: answer.context_complete,
             trace_id: answer.trace_id.clone(),
+            latency_ms,
             error,
         })?;
     Ok(result(
@@ -233,7 +247,21 @@ mod tests {
         let o = Olive::new(false);
         let r = go(&hometown(None), &o).unwrap();
         assert!(r.proposal.is_none() && r.suppressed.is_none());
+        assert!(!r.has_proposal && !r.validated);
         assert!(o.bodies.borrow().is_empty());
+    }
+
+    #[test]
+    fn result_reports_received_and_validated() {
+        let one = r#"{"action_type":"crm.case_note@1","party_ref":"p","parameters":{"note":"n"},"justification":"j"}"#;
+        let o = Olive::new(false);
+        let r = go(&hometown(Some(one)), &o).unwrap();
+        assert!(r.has_proposal && r.validated);
+        let bad =
+            r#"{"action_type":"crm.nope@1","party_ref":"p","parameters":{},"justification":"j"}"#;
+        let r = go(&hometown(Some(bad)), &o).unwrap();
+        assert!(r.has_proposal && !r.validated);
+        assert_eq!(r.suppressed, Some("not_in_catalog"));
     }
 
     #[test]
@@ -343,6 +371,7 @@ mod tests {
                 context_complete,
                 trace_id,
                 error,
+                ..
             }) => {
                 assert_eq!(answer, "display only");
                 assert!(context_complete);

@@ -389,3 +389,111 @@ fn layer_entries_are_id_status_objects() {
         serde_json::json!([{"id": "RestrictedToken", "status": "Unconfirmed"}])
     );
 }
+
+// ---- §3.3 run-log events ----
+
+fn event_list(case: &Case) -> Vec<Value> {
+    let (_, log) = read_run_record(&case.runs);
+    String::from_utf8_lossy(&log)
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect()
+}
+
+fn names(events: &[Value]) -> Vec<String> {
+    events
+        .iter()
+        .map(|e| e["event"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+#[test]
+fn run_log_carries_the_section_3_3_events() {
+    // submitted proposal: received -> validated -> submitted -> completed
+    let case = completed_case();
+    let events = event_list(&case);
+    assert_eq!(
+        names(&events),
+        [
+            "run.started",
+            "answer.received",
+            "proposal.validated",
+            "proposal.submitted",
+            "run.completed"
+        ]
+    );
+    let received = &events[1];
+    assert_eq!(received["trace_id"], "trace-stub-1");
+    assert_eq!(received["context_complete"], true);
+    assert_eq!(received["has_proposal"], true);
+    assert!(received["latency_ms"].is_u64());
+    let submitted = &events[3];
+    assert_eq!(submitted["proposal_id"], "prop-1");
+    assert_eq!(submitted["status"], "awaiting_approval");
+    assert!(submitted["reason"].is_null());
+    assert_eq!(submitted["http_status"], 202);
+    assert_no_canary(&case, true);
+
+    // refused_policy: the submitted event carries the reason
+    let hometown = ScriptedStub::new(vec![Reply::json(200, &proposal_answer())]);
+    let olive = ScriptedStub::olive_ok(200, "prop-2", "refused_policy", Some("policy_denied"));
+    let case = run_case(&hometown, &olive, &[]);
+    assert_eq!(case.output.status.code(), Some(0));
+    let events = event_list(&case);
+    let submitted: Vec<_> = events
+        .iter()
+        .filter(|e| e["event"] == "proposal.submitted")
+        .collect();
+    assert_eq!(submitted[0]["status"], "refused_policy");
+    assert_eq!(submitted[0]["reason"], "policy_denied");
+
+    // no proposal: received with has_proposal=false, nothing validated
+    let body =
+        r#"{"trace_id":"trace-stub-1","answer":"a","context_complete":false,"proposal":null}"#;
+    let hometown = ScriptedStub::new(vec![Reply::json(200, body)]);
+    let olive = ScriptedStub::new(vec![Reply::empty(500)]);
+    let case = run_case(&hometown, &olive, &[]);
+    assert_eq!(case.output.status.code(), Some(0));
+    let events = event_list(&case);
+    assert_eq!(
+        names(&events),
+        ["run.started", "answer.received", "run.completed"]
+    );
+    assert_eq!(events[1]["has_proposal"], false);
+    assert_eq!(events[1]["context_complete"], false);
+
+    // suppressed proposal: received -> suppressed, never validated
+    let bad = serde_json::json!({
+        "trace_id": "trace-stub-1", "answer": "a", "context_complete": true,
+        "proposal": {"action_type": "crm.nope@1", "party_ref": CANARY,
+                     "parameters": {}, "justification": "j"}
+    })
+    .to_string();
+    let hometown = ScriptedStub::new(vec![Reply::json(200, &bad)]);
+    let olive = ScriptedStub::new(vec![Reply::empty(500)]);
+    let case = run_case(&hometown, &olive, &[]);
+    assert_eq!(
+        names(&event_list(&case)),
+        [
+            "run.started",
+            "answer.received",
+            "proposal.suppressed",
+            "run.completed"
+        ]
+    );
+
+    // olive failure: received -> validated -> failed
+    let hometown = ScriptedStub::new(vec![Reply::json(200, &proposal_answer())]);
+    let olive = ScriptedStub::error(500, "unavailable");
+    let case = run_case(&hometown, &olive, &[]);
+    assert_eq!(case.output.status.code(), Some(22));
+    assert_eq!(
+        names(&event_list(&case)),
+        [
+            "run.started",
+            "answer.received",
+            "proposal.validated",
+            "run.failed"
+        ]
+    );
+}
