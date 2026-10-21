@@ -50,3 +50,7 @@ None to scope. Test-only lint allowances added (clippy permissions_set_readonly_
 
 ## Self-Check: PASSED
 Gates run green: cargo fmt --check, clippy --all-targets --all-features -D warnings, cargo test --features stubs.
+
+## Post-plan fixes
+
+- `56922a0` fix(01-10): `key_id` in the agent-session record is now deserialized untyped, so a JSON-number `key_id` fails with `agent_record:key_id` (spec reason) instead of `agent_record:parse`. `tc_start_13_numeric_key_id_spec_reason` is un-ignored and passes; TC-START-13 is fully measured.
