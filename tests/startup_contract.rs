@@ -17,7 +17,7 @@
 //!   TC-START-10 -> tc_start_10_layer_status
 //!   TC-START-11 -> tc_start_11_out_of_scope_rows_recorded_verbatim
 //!   TC-START-12 -> tc_start_12_agent_identity
-//!   TC-START-13 -> tc_start_13_key_id_and_expiry, tc_start_13_numeric_key_id_spec_reason (ignored: defect)
+//!   TC-START-13 -> tc_start_13_key_id_and_expiry, tc_start_13_numeric_key_id_spec_reason
 //!   TC-START-14 -> tc_start_14_injection_set
 //!   TC-START-15 -> tc_start_15_profile_and_port
 //!   TC-START-16 -> tc_start_16_record_age
@@ -340,9 +340,7 @@ fn tc_start_13_key_id_and_expiry() {
 
 // Spec fixture keyid-numeric (JSON number) must give agent_record:key_id, but
 // the typed parse in receipt.rs fails first and reports agent_record:parse.
-// Product defect reported in 01-10-SUMMARY; fix is outside this plan's files.
 #[test]
-#[ignore = "product defect: JSON-number key_id reports agent_record:parse, spec says agent_record:key_id"]
 fn tc_start_13_numeric_key_id_spec_reason() {
     agent_case("agent_record:key_id", |a| a["key_id"] = json!(12345));
 }

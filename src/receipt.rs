@@ -38,7 +38,8 @@ struct AgentSessionRecord {
     session_id: String,
     agent_id: String,
     purpose: String,
-    key_id: String,
+    // Untyped so a non-string key_id reports agent_record:key_id, not parse.
+    key_id: serde_json::Value,
     key_expires_at_unix: u64,
     injected_on: Vec<String>,
     direct_gateway: bool,
@@ -199,8 +200,13 @@ pub fn validate_startup(
     if agent.purpose != policy.purpose {
         return Err(agent_error("purpose"));
     }
-    let key = Uuid::parse_str(&agent.key_id).map_err(|_| agent_error("key_id"))?;
-    if key.to_string() != agent.key_id {
+    let key_id = agent
+        .key_id
+        .as_str()
+        .ok_or_else(|| agent_error("key_id"))?
+        .to_owned();
+    let key = Uuid::parse_str(&key_id).map_err(|_| agent_error("key_id"))?;
+    if key.to_string() != key_id {
         return Err(agent_error("key_id"));
     }
     let minimum_expiry = now_unix
@@ -231,7 +237,7 @@ pub fn validate_startup(
 
     Ok(ValidatedSession {
         session_id: receipt.session_id,
-        agent_key_id: agent.key_id,
+        agent_key_id: key_id,
         token_arm,
         layers_outside_expectancy_scope: outside_scope,
     })
