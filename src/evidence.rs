@@ -17,6 +17,7 @@ struct RunRecord<'a> {
     nono: NonoRecord<'a>,
     purpose: &'a str,
     party_ref_hash: &'a str,
+    // Failed-olive runs also carry the answer ids (assumption A7; additive, content-free).
     answer: Option<AnswerRecord<'a>>,
     proposal: Option<ProposalRecord<'a>>,
     log_sha256: &'a str,
@@ -39,6 +40,15 @@ struct AnswerRecord<'a> {
 struct ProposalRecord<'a> {
     proposal_id: &'a str,
     status: &'a str,
+    reason: Option<&'a str>,
+}
+
+/// Proposal outcome for the run record (D-07). `reason` is only set for
+/// refused_policy and must be a guarded code.
+pub struct ProposalOutcome<'a> {
+    pub proposal_id: &'a str,
+    pub status: &'a str,
+    pub reason: Option<&'a str>,
 }
 
 pub struct Evidence {
@@ -52,12 +62,23 @@ impl Evidence {
         Self {
             dir,
             run_id,
-            lines: vec!["{\"event\":\"run.started\"}".to_owned()],
+            lines: vec![serde_json::json!({"event": "run.started"}).to_string()],
             started_at,
         }
     }
     pub fn event(&mut self, event: &str) {
-        self.lines.push(format!("{{\"event\":\"{event}\"}}"));
+        self.event_with(event, serde_json::Value::Null);
+    }
+    /// Serde-built event line: `{"event": name, ...fields}` (D-08, D-09).
+    pub fn event_with(&mut self, name: &str, fields: serde_json::Value) {
+        let mut line = serde_json::Map::new();
+        line.insert("event".into(), serde_json::Value::String(name.to_owned()));
+        if let serde_json::Value::Object(map) = fields {
+            for (key, value) in map {
+                line.insert(key, value);
+            }
+        }
+        self.lines.push(serde_json::Value::Object(line).to_string());
     }
     #[allow(clippy::too_many_arguments)]
     pub fn finish(
@@ -70,7 +91,7 @@ impl Evidence {
         party_ref: &str,
         outcome: &str,
         answer: Option<(&str, bool)>,
-        proposal: Option<(&str, &str)>,
+        proposal: Option<ProposalOutcome<'_>>,
         ended_at: u64,
     ) -> io::Result<()> {
         self.event(if outcome == "completed" {
@@ -87,9 +108,16 @@ impl Evidence {
             trace_id,
             context_complete,
         });
-        let proposal = proposal.map(|(proposal_id, status)| ProposalRecord {
-            proposal_id,
-            status,
+        let proposal = proposal.map(|p| ProposalRecord {
+            proposal_id: p.proposal_id,
+            status: p.status,
+            reason: p.reason.map(|r| {
+                if crate::clients::guard_code(r) {
+                    r
+                } else {
+                    "invalid_reason"
+                }
+            }),
         });
         let record = RunRecord {
             run_id: &self.run_id,
@@ -141,7 +169,7 @@ mod tests {
             .finish(
                 &session,
                 "liam",
-                "0.4.0",
+                "0.4.1",
                 4,
                 "servicing",
                 "CANARY-7f3a",
@@ -154,5 +182,82 @@ mod tests {
         let record = std::fs::read_to_string(dir.join("run-1.json")).unwrap();
         let log = std::fs::read_to_string(dir.join("run-1.jsonl")).unwrap();
         assert!(!record.contains("CANARY-7f3a") && !log.contains("CANARY-7f3a"));
+    }
+
+    fn session() -> ValidatedSession {
+        ValidatedSession {
+            session_id: "s".into(),
+            agent_key_id: "k".into(),
+            token_arm: "A".into(),
+            layers_outside_expectancy_scope: vec![],
+        }
+    }
+
+    #[test]
+    fn events_are_valid_json_even_with_hostile_fields() {
+        let dir = std::env::temp_dir().join(format!("liam-evidence-{}", uuid::Uuid::now_v7()));
+        let mut evidence = Evidence::new(dir.to_string_lossy().into_owned(), "run-2".into(), 1);
+        evidence.event_with(
+            "proposal.refused",
+            serde_json::json!({"reason": "a\"b\nc\\d", "investigate": true}),
+        );
+        evidence
+            .finish(
+                &session(),
+                "liam",
+                "0.4.1",
+                4,
+                "p",
+                "x",
+                "completed",
+                None,
+                None,
+                2,
+            )
+            .unwrap();
+        let log = std::fs::read_to_string(dir.join("run-2.jsonl")).unwrap();
+        for line in log.lines() {
+            let v: serde_json::Value = serde_json::from_str(line).unwrap();
+            assert!(v.get("event").is_some());
+        }
+        assert!(log.contains("\"investigate\":true"));
+    }
+
+    #[test]
+    fn proposal_record_carries_reason_or_null() {
+        let dir = std::env::temp_dir().join(format!("liam-evidence-{}", uuid::Uuid::now_v7()));
+        for (id, reason, expect) in [
+            ("r3", None, "null"),
+            (
+                "r4",
+                Some("trace_proposal_mismatch"),
+                "\"trace_proposal_mismatch\"",
+            ),
+        ] {
+            let mut evidence = Evidence::new(dir.to_string_lossy().into_owned(), id.into(), 1);
+            evidence
+                .finish(
+                    &session(),
+                    "liam",
+                    "0.4.1",
+                    4,
+                    "p",
+                    "x",
+                    "completed",
+                    None,
+                    Some(ProposalOutcome {
+                        proposal_id: "pr",
+                        status: "s",
+                        reason,
+                    }),
+                    2,
+                )
+                .unwrap();
+            let v: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(dir.join(format!("{id}.json"))).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(v["proposal"]["reason"].to_string(), expect);
+        }
     }
 }
