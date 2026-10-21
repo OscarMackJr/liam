@@ -1,7 +1,7 @@
 # Draft Liam profile. This is a policy artifact for nono-owner review, not a
-# source of credentials. Its syntax and receipt representation are blocked on
-# the NONO v0.4.3 receipt-contract amendment.
-profile_version = "0.3.0"
+# source of credentials. Its syntax and receipt representation follow the
+# ratified NONO_v0.4.3 contract; this file remains a draft pending nono-owner review.
+profile_version = 4
 
 [agent]
 agent_id = "liam"
