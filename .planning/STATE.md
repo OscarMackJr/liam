@@ -87,7 +87,13 @@ None yet.
 
 - Phase 2: `expected_token_arm` can only be set after nono-owner sign-off on O7. Until then, every non-stub run exits `10 receipt:token_arm`.
 - Phases 2–4: these need builds of the nono fork, hometown §2.6, olive v1 and popeye key exchange on this machine. The user reports they are available or soon available.
-- Phase 1: the vocabulary hash in `liam.toml` is a placeholder (CONCERNS.md); CONF-11 swaps in the canonical `60a44f00…` hash. If the vendored file does not hash to it, that is a stop condition.
+- Resolved in Phase 1 (01-12): `liam.toml` pins the canonical vocabulary hash `60a44f00…`, sourced from `fiskroad/contracts/vocabulary.yaml`.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261021-qrq | Fix vendor line endings so a fresh clone builds with `--locked --offline` | 2026-10-21 | 735d925 | [261021-qrq-fix-vendor-line-endings](./quick/261021-qrq-fix-vendor-line-endings/) |
 
 ## Deferred Items
 
@@ -95,6 +101,7 @@ None yet.
 |----------|------|--------|-------------|
 | Integrity | DSSE record verification (DEF-01, TC-START-07) | Waiting on NONO_v0.4.3 O2 | Init |
 | Validation | Managed-workstation TC-E2E repeat (DEF-02) | v2 | Init |
+| Integrity | WR-05 effective write access (read-only attribute accepted) and WR-06 DSSE envelope not detected | Waiting on NONO_v0.4.3 re-ratification (§4) | Phase 1 review |
 
 ## Session Continuity
 
