@@ -1,6 +1,7 @@
+use super::reason;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::value::RawValue;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize)]
@@ -12,28 +13,49 @@ pub struct AnswerRequest<'a> {
     pub nono_session_id: &'a str,
     pub step_role: &'static str,
 }
+/// Extra top-level response keys are ignored (TC-SEC-03). The proposal is kept
+/// as raw bytes so it can be forwarded to olive unchanged (D-01).
 #[derive(Debug, Clone, Deserialize)]
 pub struct AnswerResponse {
     pub trace_id: String,
     pub answer: String,
     pub context_complete: bool,
-    pub proposal: Option<Proposal>,
+    #[serde(default)]
+    pub proposal: Option<Box<RawValue>>,
 }
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Proposal {
-    pub action_type: String,
-    pub party_ref: String,
-    pub parameters: Value,
-    pub justification: String,
-}
+/// Strings hold the full reason line text, e.g. `hometown:purpose_refused`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum HometownError {
-    NoInjectedKey,
-    KeyInactive,
-    PurposeRefused,
-    Status(u16),
+    PurposeRefused(String),
+    Rejected { status: u16, reason: String },
     Unavailable,
     InvalidResponse,
+}
+impl HometownError {
+    pub fn outcome(&self) -> &'static str {
+        match self {
+            HometownError::PurposeRefused(_) => "purpose_refused",
+            HometownError::Rejected { reason, .. } => match reason.as_str() {
+                "hometown:no_injected_key" => "hometown_no_injected_key",
+                "hometown:key_inactive" => "hometown_key_inactive",
+                _ => "hometown_failed",
+            },
+            HometownError::Unavailable | HometownError::InvalidResponse => "hometown_unavailable",
+        }
+    }
+}
+/// Status alone decides the class; the body only supplies a guarded reason.
+pub(crate) fn classify(status: u16, body: &[u8]) -> HometownError {
+    if status == 403 {
+        return HometownError::PurposeRefused(reason("hometown", status, body));
+    }
+    if status >= 500 {
+        return HometownError::Unavailable;
+    }
+    HometownError::Rejected {
+        status,
+        reason: reason("hometown", status, body),
+    }
 }
 pub trait HometownClient {
     fn answer(&self, request: &AnswerRequest<'_>) -> Result<AnswerResponse, HometownError>;
@@ -62,26 +84,73 @@ impl HometownClient for HttpHometownClient {
             .send()
             .map_err(|_| HometownError::Unavailable)?;
         let status = response.status();
+        let body = response.bytes().map_err(|_| HometownError::Unavailable)?;
         if status.is_success() {
-            return response.json().map_err(|_| HometownError::InvalidResponse);
+            return serde_json::from_slice(&body).map_err(|_| HometownError::InvalidResponse);
         }
-        if status.as_u16() == 401 {
-            let inactive = response
-                .text()
-                .map(|body| body.contains("key_inactive"))
-                .unwrap_or(false);
-            return Err(if inactive {
-                HometownError::KeyInactive
-            } else {
-                HometownError::NoInjectedKey
-            });
+        Err(classify(status.as_u16(), &body))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rej(status: u16, reason: &str) -> HometownError {
+        HometownError::Rejected {
+            status,
+            reason: reason.into(),
         }
-        if status.as_u16() == 403 {
-            return Err(HometownError::PurposeRefused);
-        }
-        if status.is_server_error() {
-            return Err(HometownError::Unavailable);
-        }
-        Err(HometownError::Status(status.as_u16()))
+    }
+
+    #[test]
+    fn status_alone_decides_the_class() {
+        assert_eq!(
+            classify(403, br#"{"error":"purpose_refused"}"#),
+            HometownError::PurposeRefused("hometown:purpose_refused".into())
+        );
+        assert_eq!(
+            classify(403, b""),
+            HometownError::PurposeRefused("hometown:403".into())
+        );
+        assert_eq!(classify(401, b"{}"), rej(401, "hometown:401"));
+        assert_eq!(
+            classify(429, br#"{"error":"rate_limited"}"#),
+            rej(429, "hometown:rate_limited")
+        );
+        assert_eq!(
+            classify(500, br#"{"error":"x"}"#),
+            HometownError::Unavailable
+        );
+        assert_eq!(classify(503, b""), HometownError::Unavailable);
+        assert_eq!(
+            classify(400, b"<html>secret text</html>"),
+            rej(400, "hometown:400")
+        );
+    }
+
+    #[test]
+    fn outcomes_derive_from_guarded_codes() {
+        assert_eq!(
+            classify(401, br#"{"error":"no_injected_key"}"#).outcome(),
+            "hometown_no_injected_key"
+        );
+        assert_eq!(
+            classify(401, br#"{"error":"key_inactive"}"#).outcome(),
+            "hometown_key_inactive"
+        );
+        assert_eq!(classify(404, b"").outcome(), "hometown_failed");
+        assert_eq!(classify(403, b"").outcome(), "purpose_refused");
+        assert_eq!(
+            HometownError::InvalidResponse.outcome(),
+            "hometown_unavailable"
+        );
+    }
+
+    #[test]
+    fn response_ignores_extra_keys_and_keeps_raw_proposal() {
+        let body = br#"{"trace_id":"t","answer":"a","context_complete":true,"x":1,"proposal":{"b":1.50,"a":"00e9"}}"#;
+        let parsed: AnswerResponse = serde_json::from_slice(body).unwrap();
+        assert_eq!(parsed.proposal.unwrap().get(), r#"{"b":1.50,"a":"00e9"}"#);
     }
 }

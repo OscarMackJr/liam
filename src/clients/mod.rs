@@ -54,9 +54,69 @@ pub fn build_proxy_client(proxy: &str) -> Result<ProxyClient, reqwest::Error> {
     Ok(ProxyClient { client, resolver })
 }
 
+#[derive(serde::Deserialize)]
+struct ErrorBody {
+    error: String,
+}
+
+/// Returns the `error` code from a `{"error": "<code>"}` body only if it
+/// matches ^[a-z][a-z0-9_]{0,63}$; anything else yields None (D-06).
+pub fn error_code(body: &[u8]) -> Option<String> {
+    let parsed: ErrorBody = serde_json::from_slice(body).ok()?;
+    guard_code(&parsed.error).then_some(parsed.error)
+}
+
+pub(crate) fn guard_code(code: &str) -> bool {
+    let bytes = code.as_bytes();
+    if bytes.is_empty() || bytes.len() > 64 || !bytes[0].is_ascii_lowercase() {
+        return false;
+    }
+    bytes
+        .iter()
+        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_')
+}
+
+/// `service:code` when the body carries a guarded code, else `service:status`.
+pub fn reason(service: &str, status: u16, body: &[u8]) -> String {
+    match error_code(body) {
+        Some(code) => format!("{service}:{code}"),
+        None => format!("{service}:{status}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{build_proxy_client, DenyAllResolver};
+    use super::{build_proxy_client, error_code, reason, DenyAllResolver};
+
+    #[test]
+    fn error_code_accepts_only_guarded_codes() {
+        assert_eq!(
+            error_code(br#"{"error":"rate_limited"}"#).as_deref(),
+            Some("rate_limited")
+        );
+        let long = format!(r#"{{"error":"{}"}}"#, "a".repeat(65));
+        let max = format!(r#"{{"error":"{}"}}"#, "a".repeat(64));
+        assert!(error_code(long.as_bytes()).is_none());
+        assert!(error_code(max.as_bytes()).is_some());
+        for bad in [
+            &br#"{"error":5}"#[..],
+            br#"{"other":"x"}"#,
+            b"",
+            br#"{"error":"Bad-Code"}"#,
+            br#"{"error":"1abc"}"#,
+            br#"{"error":"a b"}"#,
+            br#"{"error":"a\nb"}"#,
+            br#"{"error":""}"#,
+        ] {
+            assert!(error_code(bad).is_none());
+        }
+        assert_eq!(reason("hometown", 403, b""), "hometown:403");
+        assert_eq!(
+            reason("olive", 400, br#"{"error":"bad_thing"}"#),
+            "olive:bad_thing"
+        );
+    }
+
     use reqwest::dns::Resolve;
     use std::{
         future::Future,
