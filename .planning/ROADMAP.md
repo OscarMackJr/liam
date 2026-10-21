@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. v0.4.1 Conformance | 12/12 | Complete   | 2026-10-21 |
+| 1. v0.4.1 Conformance | 12/12 | Complete    | 2026-10-21 |
 | 2. Real nono Session | 0/TBD | Not started | - |
 | 3. Live hometown and popeye | 0/TBD | Not started | - |
 | 4. Live olive | 0/TBD | Not started | - |
