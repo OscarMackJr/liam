@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-21T18:52:16.241Z"
+last_updated: "2026-10-21T18:52:26.748Z"
 last_activity: 2026-10-21
 progress:
   total_phases: 5
@@ -51,6 +51,7 @@ Progress: [█████░░░░░] 50%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01 P06 | 20min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,7 @@ Recent decisions affecting current work:
 - [Roadmap]: 5 coarse phases: conformance (stubs) → real nono → live hometown + popeye → live olive → joined E2E
 - [Roadmap]: Contract-diff stop gates open the phase that depends on them: NONO-01 and NONO-02/O7 (Phase 2), LIVE-01 (Phase 3), LIVE-03 (Phase 4). A mismatch updates the contract table + README and halts for human review
 - [Roadmap]: DSSE (TC-START-07) remains deferred (DEF-01); Phase 1 records it as deferred in RESULTS.md
+- [Phase 01]: 01-06: hometown retry via RetryOnce adapter; gateway event name const in stubs.rs
 
 ### Pending Todos
 
