@@ -17,7 +17,13 @@ fn slash(value: &Path) -> String {
 }
 
 pub fn write_test_config(dir: &Path, hometown_url: &str, olive_url: &str, timeout_seconds: u64) {
-    write_test_config_with_runs(dir, hometown_url, olive_url, timeout_seconds, &dir.join("runs"));
+    write_test_config_with_runs(
+        dir,
+        hometown_url,
+        olive_url,
+        timeout_seconds,
+        &dir.join("runs"),
+    );
 }
 
 pub fn write_test_config_with_runs(
