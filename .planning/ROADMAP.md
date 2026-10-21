@@ -52,7 +52,7 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
 
 - [x] 01-07-PLAN.md — ANS/FAIL/input process tests
 - [x] 01-08-PLAN.md — JCS canonicaliser, ACT/SEC/NET-04 process tests
-- [ ] 01-09-PLAN.md — contracts, run-record schema, README, EVD tests
+- [x] 01-09-PLAN.md — contracts, run-record schema, README, EVD tests
 - [ ] 01-10-PLAN.md — START/KEY/META/LVOC/BUILD coverage
 
 **Wave 5** *(blocked on Wave 4 completion)*
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. v0.4.1 Conformance | 8/12 | In Progress|  |
+| 1. v0.4.1 Conformance | 9/12 | In Progress|  |
 | 2. Real nono Session | 0/TBD | Not started | - |
 | 3. Live hometown and popeye | 0/TBD | Not started | - |
 | 4. Live olive | 0/TBD | Not started | - |
