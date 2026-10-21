@@ -78,6 +78,16 @@ pub(crate) fn guard_code(code: &str) -> bool {
         .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_')
 }
 
+/// Liam-side guard for upstream identifiers that reach the run record, the log
+/// and stdout (hometown `trace_id`, olive `proposal_id`):
+/// `^[A-Za-z0-9._:-]{1,128}$`. Pending confirmation in S-HT-1 / S-OL-1.
+pub(crate) fn id_ok(id: &str) -> bool {
+    (1..=128).contains(&id.len())
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b':' | b'-'))
+}
+
 /// `service:code` when the body carries a guarded code, else `service:status`.
 pub fn reason(service: &str, status: u16, body: &[u8]) -> String {
     match error_code(body) {
@@ -88,7 +98,32 @@ pub fn reason(service: &str, status: u16, body: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_proxy_client, error_code, reason, DenyAllResolver};
+    use super::{build_proxy_client, error_code, id_ok, reason, DenyAllResolver};
+
+    #[test]
+    fn id_guard_accepts_only_the_identifier_pattern() {
+        for ok in [
+            "t",
+            "trace-stub-1",
+            "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+            "A.b_c:D-9",
+        ] {
+            assert!(id_ok(ok), "{ok}");
+        }
+        assert!(id_ok(&"a".repeat(128)));
+        for bad in [
+            String::new(),
+            "a".repeat(129),
+            "has space".into(),
+            "slash/x".into(),
+            "esc\u{1b}[2J".into(),
+            "cr\r".into(),
+            "caf\u{e9}".into(),
+            "{\"x\":1}".into(),
+        ] {
+            assert!(!id_ok(&bad), "{bad:?}");
+        }
+    }
 
     #[test]
     fn error_code_accepts_only_guarded_codes() {

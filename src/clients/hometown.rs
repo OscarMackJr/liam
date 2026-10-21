@@ -66,6 +66,18 @@ pub(crate) fn classify(status: u16, body: &[u8]) -> HometownError {
         reason: reason("hometown", status, body),
     }
 }
+/// A 2xx body is an answer only if it parses and its `trace_id` passes the
+/// Liam-side identifier guard (`super::id_ok`), so an empty or free-text id
+/// never reaches the record, the log or olive's `trace_ref`
+/// (hometown:unavailable, no retry, like any other invalid response).
+pub(crate) fn parse_answer(body: &[u8]) -> Result<AnswerResponse, HometownError> {
+    let parsed: AnswerResponse =
+        serde_json::from_slice(body).map_err(|_| HometownError::InvalidResponse)?;
+    if !super::id_ok(&parsed.trace_id) {
+        return Err(HometownError::InvalidResponse);
+    }
+    Ok(parsed)
+}
 pub trait HometownClient {
     fn answer(&self, request: &AnswerRequest<'_>) -> Result<AnswerResponse, HometownError>;
 }
@@ -95,7 +107,7 @@ impl HometownClient for HttpHometownClient {
         let status = response.status();
         let body = response.bytes().map_err(|_| HometownError::Unavailable)?;
         if status.is_success() {
-            return serde_json::from_slice(&body).map_err(|_| HometownError::InvalidResponse);
+            return parse_answer(&body);
         }
         Err(classify(status.as_u16(), &body))
     }
@@ -171,6 +183,33 @@ mod tests {
             .unwrap()
             .proposal
             .is_none());
+    }
+
+    #[test]
+    fn trace_id_must_pass_the_id_guard() {
+        let body = |id: &str| {
+            format!(
+                r#"{{"trace_id":{},"answer":"a","context_complete":true,"proposal":null}}"#,
+                serde_json::to_string(id).unwrap()
+            )
+        };
+        assert_eq!(
+            parse_answer(body("trace-1").as_bytes()).unwrap().trace_id,
+            "trace-1"
+        );
+        for bad in [
+            "",
+            "has space",
+            "party-ref/opaque",
+            "x\u{1b}[2J",
+            &"a".repeat(129),
+        ] {
+            assert_eq!(
+                parse_answer(body(bad).as_bytes()).unwrap_err(),
+                HometownError::InvalidResponse,
+                "{bad:?}"
+            );
+        }
     }
 
     #[test]

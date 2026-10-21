@@ -22,11 +22,11 @@
     "party_ref_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "answer": {
       "description": "null unless hometown answered; failed-olive runs also carry it (assumption A7, additive)",
-      "oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["trace_id", "context_complete"], "properties": {"trace_id": {"type": "string"}, "context_complete": {"type": "boolean"}}}]
+      "oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["trace_id", "context_complete"], "properties": {"trace_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$", "description": "Liam-side id guard, pending confirmation in S-HT-1"}, "context_complete": {"type": "boolean"}}}]
     },
     "proposal": {
       "description": "null when nothing was submitted; reason is additive (D-07): a guarded code for refused_policy, otherwise null",
-      "oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["proposal_id", "status", "reason"], "properties": {"proposal_id": {"type": "string"}, "status": {"type": "string", "enum": ["proposed", "refused_policy", "awaiting_approval", "approved", "rejected", "executed", "execution_failed", "expired"], "description": "vocabulary action_outcomes (design 7.2)"}, "reason": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}]}}}]
+      "oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["proposal_id", "status", "reason"], "properties": {"proposal_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$", "description": "Liam-side id guard, pending confirmation in S-OL-1"}, "status": {"type": "string", "enum": ["proposed", "refused_policy", "awaiting_approval", "approved", "rejected", "executed", "execution_failed", "expired"], "description": "vocabulary action_outcomes (design 7.2)"}, "reason": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}]}}}]
     },
     "log_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
   }

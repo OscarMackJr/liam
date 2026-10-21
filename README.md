@@ -105,6 +105,13 @@ each is recorded here for user review and none is a confirmed upstream fact.
   same list. A `refused_policy` without a guarded reason code is also not a
   valid proposal response. A hometown 200 without the required `proposal`
   key (S-HT-1; `null` when there is none) is `hometown:unavailable`.
+- Identifier guard (Liam-side guard pending confirmation in S-HT-1 /
+  S-OL-1): hometown's `trace_id` and olive's `proposal_id` must match
+  `^[A-Za-z0-9._:-]{1,128}$`. An empty or out-of-pattern id makes the
+  response invalid: hometown exits `21 hometown:unavailable` (no retry),
+  olive exits `22 olive:unavailable`. The run record schema pins both
+  fields to the same pattern, so no free text reaches the record, the log
+  or stdout through them.
 - Harness limits: the local capture proxy and stubs use plain http with
   absolute-form requests; HTTPS `CONNECT` tunnelling through nono-proxy is
   not exercised locally and is left to the live phases.

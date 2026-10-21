@@ -89,6 +89,13 @@ fn is_hex64(text: &str) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
+fn is_id(text: &str) -> bool {
+    (1..=128).contains(&text.len())
+        && text
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b':' | b'-'))
+}
+
 fn is_code(text: &str) -> bool {
     !text.is_empty()
         && text.len() <= 64
@@ -99,7 +106,7 @@ fn is_code(text: &str) -> bool {
 }
 
 /// Returns the first violation, or None. Handles the subset of JSON Schema the
-/// run-record schema uses: type, enum, pattern (two known), required, properties,
+/// run-record schema uses: type, enum, pattern (three known), required, properties,
 /// additionalProperties:false, items, oneOf.
 fn violation(schema: &Value, value: &Value, path: &str) -> Option<String> {
     if let Some(allowed) = schema.get("enum").and_then(Value::as_array) {
@@ -125,6 +132,7 @@ fn violation(schema: &Value, value: &Value, path: &str) -> Option<String> {
         let ok = match pattern {
             "^[0-9a-f]{64}$" => is_hex64(text),
             "^[a-z][a-z0-9_]{0,63}$" => is_code(text),
+            "^[A-Za-z0-9._:-]{1,128}$" => is_id(text),
             other => return Some(format!("{path}: unsupported pattern {other}")),
         };
         if !ok {
@@ -251,6 +259,15 @@ fn tc_evd_01_schema_check_rejects_extra_and_missing_keys() {
     let (mut record, _) = read_run_record(&case.runs);
     record.as_object_mut().unwrap().remove("log_sha256");
     assert!(violation(&schema(), &record, "$").is_some());
+    // CR-02: trace_id and proposal_id follow the Liam-side id guard
+    for bad in ["", "has space", "x/y", "a\u{1b}[2J", &"a".repeat(129)] {
+        let (mut record, _) = read_run_record(&case.runs);
+        record["answer"]["trace_id"] = Value::from(bad);
+        assert!(violation(&schema(), &record, "$").is_some(), "{bad:?}");
+        let (mut record, _) = read_run_record(&case.runs);
+        record["proposal"]["proposal_id"] = Value::from(bad);
+        assert!(violation(&schema(), &record, "$").is_some(), "{bad:?}");
+    }
 }
 
 #[test]

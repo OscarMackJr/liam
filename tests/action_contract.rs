@@ -508,3 +508,24 @@ fn olive_status_outside_the_vocabulary_is_not_recorded() {
     case.assert_ok_empty_stderr();
     assert_eq!(case.record()["proposal"]["status"], "approved");
 }
+
+// ---- proposal_id must pass the Liam-side id guard (CR-02) ----
+
+#[test]
+fn olive_proposal_id_outside_the_id_pattern_is_not_recorded() {
+    for id in ["", "prop 1", "prop/CANARY-7f3a", "prop\u{1b}[2J"] {
+        let hometown = ScriptedStub::new(vec![Reply::json(200, &answer_body(&valid_note()))]);
+        let olive = ScriptedStub::olive_ok(202, id, "awaiting_approval", None);
+        let case = run_case(&hometown, &olive);
+        assert_eq!(case.code(), 22, "stderr: {}", case.stderr());
+        assert_eq!(case.stderr(), "liam: 22 olive:unavailable\n");
+        assert_eq!(olive.count(), 1, "no retry");
+        let record = case.record();
+        assert!(record["proposal"].is_null(), "{record}");
+        assert_eq!(record["outcome"], "olive_failed");
+        assert!(!case.stdout().contains("Proposal "), "{}", case.stdout());
+        let (record, log) = read_run_record(&case.runs);
+        let text = format!("{record}{}", String::from_utf8_lossy(&log));
+        assert!(!text.contains(CANARY) && !text.contains("prop 1"));
+    }
+}

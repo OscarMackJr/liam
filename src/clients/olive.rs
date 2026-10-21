@@ -73,7 +73,9 @@ pub(crate) fn classify(status: u16, body: &[u8]) -> Result<ProposalResponse, Oli
     if status == 200 || status == 202 {
         let mut parsed: ProposalResponse =
             serde_json::from_slice(body).map_err(|_| OliveError::InvalidResponse)?;
-        if !status_ok(status, &parsed.status) {
+        // Liam-side id guard (pending confirmation in S-OL-1): an empty or
+        // free-text proposal_id never reaches the record, the log or stdout.
+        if !status_ok(status, &parsed.status) || !super::id_ok(&parsed.proposal_id) {
             return Err(OliveError::InvalidResponse);
         }
         parsed.http_status = status;
@@ -224,6 +226,26 @@ mod tests {
             assert_eq!(classify(200, body(ok).as_bytes()).unwrap().status, *ok);
         }
         assert!(classify(202, body("awaiting_approval").as_bytes()).is_ok());
+    }
+
+    #[test]
+    fn proposal_id_must_pass_the_id_guard() {
+        let body = |id: &str| {
+            format!(
+                r#"{{"proposal_id":{},"status":"awaiting_approval"}}"#,
+                serde_json::to_string(id).unwrap()
+            )
+        };
+        assert!(classify(202, body("proposal-1").as_bytes()).is_ok());
+        for bad in ["", "has space", "p/q", "p\u{1b}[2J", &"a".repeat(129)] {
+            for http in [200, 202] {
+                assert_eq!(
+                    classify(http, body(bad).as_bytes()).unwrap_err(),
+                    OliveError::InvalidResponse,
+                    "{http} {bad:?}"
+                );
+            }
+        }
     }
 
     #[test]

@@ -571,3 +571,29 @@ fn closed_stdout_still_writes_evidence_and_exit_code() {
         assert_eq!(record["answer"]["trace_id"], "trace-stub-1");
     }
 }
+
+// ---- trace_id must pass the Liam-side id guard (CR-02) ----
+
+#[test]
+fn hometown_trace_id_outside_the_id_pattern_is_unavailable_without_retry() {
+    for id in ["", "trace 1", "CANARY-7f3a/x", "t\u{1b}[2J"] {
+        let body = serde_json::json!({
+            "trace_id": id,
+            "answer": "stub answer",
+            "context_complete": true,
+            "proposal": null
+        })
+        .to_string();
+        let hometown = ScriptedStub::new(vec![Reply::json(200, &body), Reply::json(200, ANSWER)]);
+        let olive = idle();
+        let case = run_case(&hometown, &olive, "question", 5);
+        case.assert_failed(21, "hometown:unavailable");
+        assert_eq!(hometown.count(), 1, "no retry for {id:?}");
+        assert_eq!(olive.count(), 0);
+        assert!(!case.stdout().contains("stub answer"));
+        assert_eq!(case.outcome(), "hometown_unavailable");
+        let (record, _) = read_run_record(&case.runs);
+        assert!(record["answer"].is_null(), "{record}");
+        case.assert_content_free(&["trace 1", "\u{1b}"]);
+    }
+}
