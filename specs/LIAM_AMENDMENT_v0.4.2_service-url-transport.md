@@ -1,7 +1,7 @@
 # Liam Amendment v0.4.2 — Service-URL Transport
 
 Version: 0.4.2
-Status: **DRAFT — not ratified.** nono Phase 126.1 accepted C1–C4 in planning (2026-10-22; C3 by deterministic route derivation); awaiting nono operator sign-off, nono’s HTTPS_PROXY/NO_PROXY answer (O-A), and ratification. Liam code does not change until ratified.
+Status: **RATIFIED 2026-10-22 — implementation pending.** nono Phase 126.1 accepted C1–C4 in planning (2026-10-22; C3 by deterministic route derivation); O-A resolved from nono facts; ratified by Oscar Mack together with the `NONO_v0.4.2` §2–§3 revision. Liam code changes follow in Phase 02.1; Status becomes implemented only after TC-NET-03, -05..-09 pass.
 Amends: `LIAM_DESIGN_SPEC_v0.4.1.md` D14, §9 first bullet, §10.2, §11 (code 11), §12 (REQ-LIAM-03); `LIAM_TEST_SPEC_v0.4.1.md` §3.2 (TC-NET-03, -05). Supersedes `LIAM_AMENDMENT_v0.4.1_proxy-transport.md` §2 items 1–3 and assumption A5.
 Re-ratification required with: `NONO_v0.4.2` §2–§3 (injection mechanism) only. C3 is met without changing `AgentSessionRecord`, so `NONO_v0.4.3` §5 and Liam design §4 are not in scope.
 Repository: `liam/specs/`.
@@ -82,7 +82,9 @@ Enforced in Liam's code:
 | `env:service_url_port` | port differs from the agent record's `proxy_port` |
 | `env:service_url_route` | route is not `/svc/hometown` / `/svc/olive` for the respective variable |
 
-Retired: `env:proxy_not_loopback`, `env:no_proxy_nonempty` (unless O-A keeps a refusal).
+Retired: `env:proxy_not_loopback`, `env:no_proxy_nonempty` (O-A resolved: no refusal is kept).
+
+**Ordering clarification (OD-2).** The form checks `env:service_url_missing`, `env:service_url_not_loopback` and `env:service_url_route` run with the other environment prerequisites. The port comparison to the agent record's `proxy_port` (`env:service_url_port`, exit 11) runs immediately after the nono record validation succeeds, still before any run record is created and before any network request. The former exit-10 `agent_record:proxy_port` case therefore becomes exit 11 `env:service_url_port`, because record validation no longer receives the proxy port.
 
 ### 5.6 Config
 
@@ -115,8 +117,9 @@ Retired: `env:proxy_not_loopback`, `env:no_proxy_nonempty` (unless O-A keeps a r
 ## 8. Open Items
 
 - **O-A.** Resolved by nono facts (126.1 plan head `ea68b3cf`, 2026-10-22): agent sessions always set `HTTPS_PROXY`/`HTTP_PROXY` (and lowercase forms) to `http://nono:<session token>@127.0.0.1:<proxy_port>`, plus `NODE_USE_ENV_PROXY=1`, `NONO_PROXY_TOKEN`, `NONO_NO_PROXY`, and `NO_PROXY=localhost,127.0.0.1[,bypass hosts]`. Liam therefore **ignores** all forward-proxy variables (refusing would refuse every real session). Because these values carry a session token, Liam must never read, parse, log or echo them; the TC-NET-03 static check should confirm no remaining `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` reads in non-test source. (Under v0.4.1 D14, Liam's exact-form check would have refused these real values anyway.)
-- **O-B.** Whether `injected_on` must contain both `hometown` and `olive` as a Liam startup check (currently implied by the record's content-free validation; make explicit at ratification).
+- **O-B.** Resolved (2026-10-22, default): **no** explicit `injected_on` check in this phase. A service missing from `inject_on` yields no `NONO_SERVICE_*_URL`, so Liam already fails closed with `env:service_url_missing`.
 - **O-C.** Resolved: C3 by derivation, no `NONO_v0.4.3` change.
+- **O-E.** (OD-3) E2E-03 (Phase 5, nono detects a gateway attempt with the gateway host as destination) assumed a CONNECT through nono-proxy. Under service-URL transport Liam never resolves or connects to a host name, so nono cannot observe the host. E2E-03 needs redesign at its own phase and is NOT changed in Phase 02.1. Stub TC-NET-04 now asserts `resolver_calls == 1` and zero bytes at any listener, including the gateway trap.
 - **O-D.** nono facts to record at ratification: CONNECT refusal is host-normalized for `inject_on` FQDNs only, other hosts follow the profile allowlist (a Liam profile allowing no other hosts gets no CONNECT); only `inject_on` services get `NONO_SERVICE_*`; inherited `NONO_SERVICE_*`, `NONO_RECEIPT_PATH`, `NONO_AGENT_RECORD_PATH` are scrubbed; every agent profile declares the gateway FQDN (supervisor derives the popeye exchange URL from it) but the child gets no gateway URL unless gateway is in `inject_on`.
 
 ---
@@ -140,8 +143,8 @@ Retired: `env:proxy_not_loopback`, `env:no_proxy_nonempty` (unless O-A keeps a r
 
 | Field | Value |
 |---|---|
-| Decision | *pending* |
-| Date | *pending* |
-| Ratified by | *pending* (Oscar Mack, architecture and risk decisions) |
-| Ratified together with | `NONO_v0.4.2` §2–§3 revision (no `NONO_v0.4.3` change) |
+| Decision | **Ratified** (amendment v0.4.2, with O-B = no explicit `injected_on` check) |
+| Date | 2026-10-22 |
+| Ratified by | Oscar Mack (architecture and risk decisions) |
+| Ratified together with | `NONO_v0.4.2` §2–§3 revision (no `NONO_v0.4.3` change); the ratifier confirmed the `NONO_v0.4.2` §2–§3 revision is ratified |
 | Implementation condition | No Liam code change before ratification; then implement and pass TC-NET-03, -05..-09 locally before any real-session claim |
