@@ -23,9 +23,9 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 
 ### Service-URL Transport (amendment v0.4.2, local against stubs)
 
-- [ ] **XPORT-01**: Liam takes hometown and olive addresses only from `NONO_SERVICE_HOMETOWN_URL` and `NONO_SERVICE_OLIVE_URL`, each of the exact form `http://127.0.0.1:<proxy_port>/svc/<service_id>` with the port equal to the agent record's `proxy_port`. Any other value exits 11 before any network request with `env:service_url_missing`, `env:service_url_not_loopback`, `env:service_url_port` or `env:service_url_route`. `liam.toml` carries no service `base_url` (D14 revised; REQ-LIAM-03; TC-NET-05 revised)
-- [ ] **XPORT-02**: The single HTTP client uses `no_proxy()` and the deny-all resolver and no forward proxy; the TC-NET-03 static check is revised to forbid `Proxy::` and still finds no socket, resolver or gateway reference; TC-NET-06 and TC-NET-07 still pass (REQ-LIAM-03)
-- [ ] **XPORT-03**: In a stub run every request reaches the capturing listener as plain HTTP on `/svc/hometown` or `/svc/olive`, no CONNECT is sent and no `Authorization` header is sent (TC-NET-09, TC-KEY-01)
+- [x] **XPORT-01**: Liam takes hometown and olive addresses only from `NONO_SERVICE_HOMETOWN_URL` and `NONO_SERVICE_OLIVE_URL`, each of the exact form `http://127.0.0.1:<proxy_port>/svc/<service_id>` with the port equal to the agent record's `proxy_port`. Any other value exits 11 before any network request with `env:service_url_missing`, `env:service_url_not_loopback`, `env:service_url_port` or `env:service_url_route`. `liam.toml` carries no service `base_url` (D14 revised; REQ-LIAM-03; TC-NET-05 revised)
+- [x] **XPORT-02**: The single HTTP client uses `no_proxy()` and the deny-all resolver and no forward proxy; the TC-NET-03 static check is revised to forbid `Proxy::` and still finds no socket, resolver or gateway reference; TC-NET-06 and TC-NET-07 still pass (REQ-LIAM-03)
+- [x] **XPORT-03**: In a stub run every request reaches the capturing listener as plain HTTP on `/svc/hometown` or `/svc/olive`, no CONNECT is sent and no `Authorization` header is sent (TC-NET-09, TC-KEY-01)
 
 ### Real nono Session (this dev machine)
 
@@ -86,9 +86,9 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 | CONF-09 | Phase 1 | Complete |
 | CONF-10 | Phase 1 | Complete |
 | CONF-11 | Phase 1 | Complete |
-| XPORT-01 | Phase 2.1 | Pending |
-| XPORT-02 | Phase 2.1 | Pending |
-| XPORT-03 | Phase 2.1 | Pending |
+| XPORT-01 | Phase 2.1 | Complete |
+| XPORT-02 | Phase 2.1 | Complete |
+| XPORT-03 | Phase 2.1 | Complete |
 | NONO-01 | Phase 2 | Pending |
 | NONO-02 | Phase 2 | Pending |
 | NONO-03 | Phase 2 | Pending |
