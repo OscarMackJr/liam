@@ -120,6 +120,7 @@ Retired: `env:proxy_not_loopback`, `env:no_proxy_nonempty` (O-A resolved: no ref
 - **O-B.** Resolved (2026-10-22, default): **no** explicit `injected_on` check in this phase. A service missing from `inject_on` yields no `NONO_SERVICE_*_URL`, so Liam already fails closed with `env:service_url_missing`.
 - **O-C.** Resolved: C3 by derivation, no `NONO_v0.4.3` change.
 - **O-E.** (OD-3) E2E-03 (Phase 5, nono detects a gateway attempt with the gateway host as destination) assumed a CONNECT through nono-proxy. Under service-URL transport Liam never resolves or connects to a host name, so nono cannot observe the host. E2E-03 needs redesign at its own phase and is NOT changed in Phase 02.1. Stub TC-NET-04 now asserts `resolver_calls == 1` and zero bytes at any listener, including the gateway trap.
+  Decided 2026-10-22 (Liam owner): option B in `.planning/notes/2026-10-22-e2e-03-options.md`, a stubs-only raw `CONNECT` with no token, recorded by nono as `HostDenied`. TC-NET-04 and TC-E2E-07 are revised when Phase 5 is planned.
 - **O-D.** nono facts to record at ratification: CONNECT refusal is host-normalized for `inject_on` FQDNs only, other hosts follow the profile allowlist (a Liam profile allowing no other hosts gets no CONNECT); only `inject_on` services get `NONO_SERVICE_*`; inherited `NONO_SERVICE_*`, `NONO_RECEIPT_PATH`, `NONO_AGENT_RECORD_PATH` are scrubbed; every agent profile declares the gateway FQDN (supervisor derives the popeye exchange URL from it) but the child gets no gateway URL unless gateway is in `inject_on`.
 
 ---

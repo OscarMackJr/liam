@@ -90,7 +90,8 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- Phase 2 (before re-running gate 1): `profiles/liam.nono.toml` has no network allowlist. Under nono 126.1 `validate_inject_allowlist` refuses launch, and an empty allowlist is allow-all (breaks D12). Add an explicit allowlist of exactly the hometown and olive API FQDNs (no gateway, no covering group or wildcard), keep `gateway` out of `inject_on`, and send it to the nono owner for review. See `.planning/notes/2026-10-22-e2e-03-options.md`.
+- Phase 5: implement E2E-03 option B (decided 2026-10-22): stubs-only raw `CONNECT <gateway FQDN>:443` with no token to `127.0.0.1:<proxy_port>`; nono records `HostDenied` in `SessionMetadata.network_events`. Revise TC-NET-04 and TC-E2E-07 pass criteria (NetworkAuditEvent, not `endpoint-detection/0.1`) under change control when Phase 5 is planned.
 
 ### Blockers/Concerns
 
