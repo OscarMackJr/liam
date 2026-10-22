@@ -7,7 +7,7 @@ use liam::{
         },
         olive::{HttpOliveClient, OliveError},
     },
-    config::{load, resolve_runs_dir, sha256_hex, validated_proxy},
+    config::{check_service_port, load, resolve_runs_dir, sha256_hex, validated_service_url},
     console::printable,
     evidence::{Evidence, ProposalOutcome},
     receipt::{ensure_not_writable, validate_startup, StartupPolicy},
@@ -141,12 +141,14 @@ fn main() {
     let local_app_data = env::var("LOCALAPPDATA").ok();
     let runs_dir = resolve_runs_dir(&config.evidence.runs_dir, local_app_data.as_deref())
         .unwrap_or_else(|reason| fail(11, reason));
-    let https_proxy = env::var("HTTPS_PROXY").unwrap_or_default();
-    let http_proxy = env::var("HTTP_PROXY").unwrap_or_default();
-    let proxy = validated_proxy(
-        &https_proxy,
-        &http_proxy,
-        &env::var("NO_PROXY").unwrap_or_default(),
+    let hometown_url = validated_service_url(
+        &env::var("NONO_SERVICE_HOMETOWN_URL").unwrap_or_default(),
+        "/svc/hometown",
+    )
+    .unwrap_or_else(|reason| fail(11, reason));
+    let olive_url = validated_service_url(
+        &env::var("NONO_SERVICE_OLIVE_URL").unwrap_or_default(),
+        "/svc/olive",
     )
     .unwrap_or_else(|reason| fail(11, reason));
     if !config.nono.record_public_key.is_empty() {
@@ -174,27 +176,23 @@ fn main() {
         config.hometown.timeout_seconds,
         config.olive.timeout_seconds,
     );
-    let session = validate_startup(
-        &receipt,
-        &agent,
-        &policy,
-        launch_process_id(),
-        now(),
-        proxy.port,
-    )
-    .unwrap_or_else(|error| fail(10, &error.0));
+    let session = validate_startup(&receipt, &agent, &policy, launch_process_id(), now())
+        .unwrap_or_else(|error| fail(10, &error.0));
+    check_service_port(hometown_url.port, session.proxy_port)
+        .unwrap_or_else(|reason| fail(11, reason));
+    check_service_port(olive_url.port, session.proxy_port)
+        .unwrap_or_else(|reason| fail(11, reason));
     let run_id = Uuid::now_v7().to_string();
     let mut evidence = Evidence::new(runs_dir, run_id.clone(), now());
-    let transport =
-        build_proxy_client(&proxy.url).unwrap_or_else(|_| fail(21, "hometown:unavailable"));
+    let transport = build_proxy_client().unwrap_or_else(|_| fail(21, "hometown:unavailable"));
     let hometown = HttpHometownClient::new(
         transport.client(),
-        &config.hometown.base_url,
+        &hometown_url.url,
         config.hometown.timeout_seconds,
     );
     let olive = HttpOliveClient::new(
         transport.client(),
-        &config.olive.base_url,
+        &olive_url.url,
         config.olive.timeout_seconds,
     );
     #[cfg(feature = "stubs")]
