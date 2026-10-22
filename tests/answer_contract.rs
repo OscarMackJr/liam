@@ -41,16 +41,11 @@ fn run_case(hometown: &ScriptedStub, olive: &ScriptedStub, question: &str, timeo
     let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
     let runs = fixture.directory().join("runs");
-    write_test_config(
-        fixture.directory(),
-        hometown.base_url(),
-        olive.base_url(),
-        timeout,
-    );
+    write_test_config(fixture.directory(), timeout);
     let output = run_liam(
         EXE,
         &fixture,
-        proxy.url(),
+        proxy.service_base(),
         &[
             "--purpose",
             "servicing",
@@ -532,16 +527,11 @@ fn closed_stdout_still_writes_evidence_and_exit_code() {
         let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
         let fixture = StubRecordPair::for_proxy(proxy.port());
         let runs = fixture.directory().join("runs");
-        write_test_config(
-            fixture.directory(),
-            hometown.base_url(),
-            olive.base_url(),
-            2,
-        );
+        write_test_config(fixture.directory(), 2);
         let mut child = common::liam_command(
             EXE,
             &fixture,
-            proxy.url(),
+            proxy.service_base(),
             &[
                 "--purpose",
                 "servicing",

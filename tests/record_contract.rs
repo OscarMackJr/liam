@@ -27,16 +27,11 @@ fn run_case(hometown: &ScriptedStub, olive: &ScriptedStub, extra_env: &[(&str, &
     let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
     let runs = fixture.directory().join("runs");
-    write_test_config(
-        fixture.directory(),
-        hometown.base_url(),
-        olive.base_url(),
-        2,
-    );
+    write_test_config(fixture.directory(), 2);
     let output = run_liam(
         EXE,
         &fixture,
-        proxy.url(),
+        proxy.service_base(),
         &[
             "--purpose",
             "servicing",
@@ -346,6 +341,7 @@ fn hostile_event_field_stays_one_json_line() {
         session_id: "s".into(),
         agent_key_id: "k".into(),
         token_arm: "A".into(),
+        proxy_port: 0,
         layers_outside_expectancy_scope: vec![],
     };
     evidence
@@ -379,6 +375,7 @@ fn layer_entries_are_id_status_objects() {
         session_id: "s".into(),
         agent_key_id: "k".into(),
         token_arm: "A".into(),
+        proxy_port: 0,
         layers_outside_expectancy_scope: vec![(
             "RestrictedToken".into(),
             liam::receipt::LayerStatus::Unconfirmed,
