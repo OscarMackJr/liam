@@ -59,7 +59,7 @@ $cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
 $ver = (& "$env:SystemRoot\System32\cmd.exe" /c ver) | Where-Object { $_ } | Select-Object -First 1
 Out-Line 'NOTE' ('ver + UBR: {0}.{1}' -f $ver.Trim(), $cv.UBR)
 
-function Check-Binary($label, $path, $procStart) {
+function Check-Binary($label, $path, $procStart, $signRequired = $true) {
     if (-not $path -or -not (Test-Path -LiteralPath $path)) { Out-Line 'FAIL' "$label binary: missing"; return }
     $item = Get-Item -LiteralPath $path
     Out-Line 'NOTE' "$label sha256: $(Get-Sha $path)"
@@ -69,6 +69,7 @@ function Check-Binary($label, $path, $procStart) {
     $sig = Get-AuthenticodeSignature -LiteralPath $path
     $thumb = if ($sig.SignerCertificate) { $sig.SignerCertificate.Thumbprint.Substring(0, 8) } else { $null }
     if ($sig.Status -eq 'Valid') { Out-Line 'PASS' "$label signature Valid (signer $thumb)" }
+    elseif ($sig.Status -eq 'NotSigned' -and -not $signRequired) { Out-Line 'NOTE' "$label NotSigned (nono's sign-poc-local.ps1 does not sign it)" }
     elseif ($sig.Status -eq 'NotSigned') { Check $false '' "$label NotSigned" }
     elseif ($sig.SignerCertificate -and $sig.SignerCertificate.Subject -eq $sig.SignerCertificate.Issuer) {
         Out-Line 'PASS' "$label signed by self-signed POC cert (signer $thumb, status $($sig.Status))"
@@ -109,7 +110,7 @@ foreach ($pattern in @('nono-wfp-service', 'nono-agentd_*')) {
             }
             if (-not $procStart) { Out-Line 'NOTE' "$($s.Name) process start time unreadable: restart check skipped" }
         } else { Out-Line 'NOTE' "$($s.Name) not running: restart check skipped" }
-        Check-Binary ("$($s.Name) [" + (Split-Path -Leaf $img) + ']') $img $procStart
+        Check-Binary ("$($s.Name) [" + (Split-Path -Leaf $img) + ']') $img $procStart ($pattern -ne 'nono-agentd_*')
         if ($img -like "$progFiles*") { Out-Line 'NOTE' "$($s.Name) runs from the Program Files install" }
         else { Out-Line 'NOTE' "$($s.Name) runs from a dev registration outside Program Files (Program Files copy, if any, is unused)" }
     }
