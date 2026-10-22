@@ -74,7 +74,7 @@ Plans:
   1. STOP GATE (start of phase): the nono fork's receipt, agent-session record and proxy environment are diffed against `contracts/receipt-fields.md`, §4.2 and A5. If they match, that is recorded. If any mismatch is found, the contract table and README are updated and work stops for review before anything below starts.
   2. STOP GATE (O7): the AppContainer `token_arm` and the §4.3 census are measured on `DirectCli` and recorded, and work stops for nono-owner review. `expected_token_arm` is set only after sign-off. Liam is never changed to accept an unreviewed value.
   3. Liam launched through `scripts/launch-under-nono.ps1` passes the startup self-check under the real fork. A receipt or agent record the user can write is refused (TC-START-06).
-  4. Each refusal case is measured: a direct launch outside nono exits 10/11 with no network activity, a stopped WFP service gives a refused session or exit 10, and an unreachable key exchange makes nono refuse the session.
+  4. Each refusal case is measured: a direct launch outside nono exits 10/11 with no network activity, a stopped WFP service gives a refused session or exit 10 (TC-E2E-06, unreachable key exchange, moved to Phase 3 per Phase 2 discussion because popeye's key exchange is not running locally).
   5. Under a real session, Liam spawns zero child processes, touches only its file grants and makes zero DNS queries from its own PID.
 **Plans**: 8 plans
 **Wave 1**
@@ -113,12 +113,13 @@ Plans:
 
 **Goal**: Under real nono, Liam gets a governed answer from live hometown through nono-proxy, and popeye's ledger attributes the call to Liam as an agent
 **Depends on**: Phase 2
-**Requirements**: LIVE-01, LIVE-02, LIVE-05
+**Requirements**: LIVE-01, LIVE-02, LIVE-05 (includes TC-E2E-06 from NONO-04)
 **Success Criteria** (what must be TRUE):
 
   1. STOP GATE (start of phase): the running hometown §2.6 server is diffed against S-HT-1 as specified in v0.4.1 §5. If it matches, that is recorded. If any mismatch is found, the contract table and README are updated and work stops for review before any live answer request is made.
   2. A real-nono run gets an answer from live hometown through nono-proxy. The captured request has no `Authorization` header from Liam, has the proxy-injected agent key, and carries `run_id` and `nono_session_id`.
   3. popeye's ledger rows for the run's ATE `primary_request_id` show `principal_type=agent`, `agent_id=liam`, the launching user as `on_behalf_of`, the launch purpose, and the agent record's `key_id`.
+  4. With popeye's key exchange unreachable, nono refuses the session (TC-E2E-06, moved from Phase 2)
 
 **Plans**: TBD
 

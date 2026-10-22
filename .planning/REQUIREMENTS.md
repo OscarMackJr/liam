@@ -26,13 +26,13 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 - [ ] **NONO-01**: A contract-diff checkpoint compares the nono fork's current `EnforcementReceipt`, `AgentSessionRecord` and proxy environment with `contracts/receipt-fields.md`, §4.2 and A5. Any mismatch updates the contract table and README, then stops for review
 - [ ] **NONO-02**: The `token_arm` the fork records for an AppContainer launch on `DirectCli`, and the census against the §4.3 expectancy table, are measured and recorded (O7). Work stops for nono-owner review, and `expected_token_arm` is set only after sign-off
 - [ ] **NONO-03**: Liam launched with `scripts/launch-under-nono.ps1` passes the startup self-check under the real nono fork. A receipt or agent record the user can write is refused (REQ-LIAM-01; TC-START-06)
-- [ ] **NONO-04**: Each refusal case is measured: direct launch outside nono exits 10 or 11 with no network activity (TC-E2E-03); with the WFP service stopped, the session is refused or Liam exits 10 on the census (TC-E2E-04); with the key exchange unreachable, nono refuses the session (TC-E2E-06)
+- [ ] **NONO-04**: Each refusal case is measured: direct launch outside nono exits 10 or 11 with no network activity (TC-E2E-03); with the WFP service stopped, the session is refused or Liam exits 10 on the census (TC-E2E-04) (TC-E2E-06 moved to Phase 3, see LIVE-02)
 - [ ] **NONO-05**: Under a real session, Liam spawns zero child processes (TC-SEC-01), touches only its file grants (TC-SEC-02) and makes zero DNS queries from its own PID (TC-NET-08) (REQ-LIAM-03/11)
 
 ### Live Service Integration
 
 - [ ] **LIVE-01**: A contract-diff checkpoint compares the running hometown §2.6 server with S-HT-1 as specified in v0.4.1 §5. Any mismatch updates the contract table and README, then stops for review
-- [ ] **LIVE-02**: Under real nono, Liam gets an answer from live hometown through nono-proxy. Liam sends no `Authorization` header; the proxy injects the agent key; the request carries `run_id` and `nono_session_id` (REQ-LIAM-04/05/07; TC-KEY-01, TC-META-01)
+- [ ] **LIVE-02**: Under real nono, Liam gets an answer from live hometown through nono-proxy. Liam sends no `Authorization` header; the proxy injects the agent key; the request carries `run_id` and `nono_session_id` (REQ-LIAM-04/05/07; TC-KEY-01, TC-META-01) Also: with popeye's key exchange unreachable, nono refuses the session (TC-E2E-06, moved from NONO-04)
 - [ ] **LIVE-03**: A contract-diff checkpoint compares the published olive v1 proposal API with S-OL-1 and §7.2–§7.4. Any mismatch updates the contract table and README, then stops for review
 - [ ] **LIVE-04**: Under real nono, Liam submits a catalog-valid proposal to live olive with `trace_ref` set to hometown's `trace_id`, and records olive's status (REQ-LIAM-05/08)
 - [ ] **LIVE-05**: popeye's ledger rows for the run's ATE `primary_request_id` show `principal_type=agent`, `agent_id=liam`, `on_behalf_of` = launching user, the launch purpose, and the agent record's `key_id` (REQ-LIAM-16; TC-E2E-05)

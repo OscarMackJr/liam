@@ -7,3 +7,6 @@ runs/*
 stubs/records/generated/
 /target/
 
+
+# Raw nono-session captures (Procmon, ETW, record copies) may contain machine paths.
+evidence-local/
