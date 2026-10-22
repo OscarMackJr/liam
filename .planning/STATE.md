@@ -105,6 +105,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261021-qrq | Fix vendor line endings so a fresh clone builds with `--locked --offline` | 2026-10-21 | 735d925 | [261021-qrq-fix-vendor-line-endings](./quick/261021-qrq-fix-vendor-line-endings/) |
+| 261022-e03 | E2E-03 redesign options note (O-E): recommend gateway-route attempt, fallback drop detection | 2026-10-22 | 21444b9 | [notes](./notes/2026-10-22-e2e-03-options.md) |
 
 ## Deferred Items
 
