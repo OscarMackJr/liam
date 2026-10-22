@@ -76,16 +76,37 @@ Plans:
   3. Liam launched through `scripts/launch-under-nono.ps1` passes the startup self-check under the real fork. A receipt or agent record the user can write is refused (TC-START-06).
   4. Each refusal case is measured: a direct launch outside nono exits 10/11 with no network activity, a stopped WFP service gives a refused session or exit 10, and an unreachable key exchange makes nono refuse the session.
   5. Under a real session, Liam spawns zero child processes, touches only its file grants and makes zero DNS queries from its own PID.
-
-**Plans**: 8 plans
+**Plans**: 8 plans
+**Wave 1**
 
 - [ ] 02-01-PLAN.md - gitignore, move TC-E2E-06 to Phase 3, standard-user check, SIGNOFF skeleton
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 02-02-PLAN.md - pin nono commit, reinstall service/driver, diff probe
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 02-03-PLAN.md - STOP GATE 1: contract diff (NONO-01)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 02-04-PLAN.md - STOP GATE 2: O7 token_arm and census, set expected_token_arm (NONO-02)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 02-05-PLAN.md - TC-START-06 ACL harness, real-record writability (NONO-03)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 02-06-PLAN.md - TC-E2E-03 direct launch, TC-E2E-04 WFP stopped (NONO-04)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 02-07-PLAN.md - Procmon/ETW captures for TC-SEC-01/02, TC-NET-08 (NONO-05)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 02-08-PLAN.md - trace-policy decision, RESULTS.md rows, docs-only commit
 
 ### Phase 3: Live hometown and popeye
