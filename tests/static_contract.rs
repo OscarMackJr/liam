@@ -120,6 +120,7 @@ const FORBIDDEN_CODE: &[&str] = &[
     "Win32::Networking",
     "Command::new",
     "std::process::Command",
+    "Proxy::",
 ];
 
 const CLIENT_CODE: &[&str] = &["ClientBuilder", "Client::new", "Client::builder"];
@@ -131,6 +132,27 @@ const FORBIDDEN_STRINGS: &[&str] = &[
     "/v1/messages",
     "/v1/completions",
 ];
+
+/// Quoted env-var names Liam must never read (D-06, D-10); matched exactly.
+const FORBIDDEN_ENV_LITERALS: &[&str] = &[
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "ALL_PROXY",
+    "NONO_SERVICE_GATEWAY_URL",
+    "https_proxy",
+    "http_proxy",
+    "no_proxy",
+    "all_proxy",
+];
+
+fn env_literal_violations(strings: &[String]) -> Vec<String> {
+    strings
+        .iter()
+        .filter(|s| FORBIDDEN_ENV_LITERALS.contains(&s.as_str()))
+        .map(|s| format!("env literal {s:?}"))
+        .collect()
+}
 
 fn count_token(code: &str, tok: &str) -> usize {
     code.match_indices(tok)
@@ -225,11 +247,13 @@ fn tc_net_03_single_proxy_client_constructor() {
             assert_eq!(n, 1, "exactly one Client::builder expected");
             for needle in [
                 "no_proxy()",
-                "Proxy::all(",
                 "dns_resolver(",
                 "redirect(reqwest::redirect::Policy::none())",
             ] {
                 assert!(s.code.contains(needle), "clients/mod.rs missing {needle}");
+            }
+            for banned in ["Proxy::", ".proxy("] {
+                assert!(!s.code.contains(banned), "clients/mod.rs contains {banned}");
             }
         } else {
             assert_eq!(n, 0, "{}: second client constructor", path.display());
@@ -237,6 +261,37 @@ fn tc_net_03_single_proxy_client_constructor() {
         builders += n;
     }
     assert_eq!(builders, 1);
+}
+
+#[test]
+fn tc_net_03_no_ambient_proxy_env_or_gateway_url_reads() {
+    for (path, text) in non_stub_sources() {
+        let v = env_literal_violations(&scan(&text).strings);
+        assert!(v.is_empty(), "{}: {:?}", path.display(), v);
+    }
+}
+
+#[test]
+fn liam_toml_has_no_base_url() {
+    let text = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("liam.toml"))
+        .expect("read liam.toml");
+    assert!(!text.contains("base_url"));
+}
+
+#[test]
+fn tc_net_03_negative_control_env_literals() {
+    for t in FORBIDDEN_ENV_LITERALS {
+        let src = format!("fn f() {{ let _ = std::env::var(\"{t}\"); }}");
+        assert!(
+            !env_literal_violations(&scan(&src).strings).is_empty(),
+            "missed {t}"
+        );
+    }
+    let flagged = scan("fn f() { let _ = env::var(\"NO_PROXY\"); }");
+    assert!(!env_literal_violations(&flagged.strings).is_empty());
+    let exempt = scan("fn f() { Client::builder().no_proxy(); }");
+    assert!(env_literal_violations(&exempt.strings).is_empty());
+    assert!(code_violations(&exempt.code, true).is_empty());
 }
 
 #[test]

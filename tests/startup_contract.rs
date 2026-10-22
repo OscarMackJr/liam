@@ -12,7 +12,7 @@
 //!   TC-START-03 -> tc_start_03_receipt_schema_1
 //!   TC-START-04 -> tc_start_04_outcome_entry_path_pid
 //!   TC-START-05 -> tc_start_05_token_arm_cases, tc_start_05_empty_expected_arm_outside_stub_mode
-//!   TC-START-08 -> tc_start_08_proxy_env_unset
+//!   TC-START-08 -> tc_start_08_service_url_unset
 //!   TC-START-09 -> tc_start_09_census
 //!   TC-START-10 -> tc_start_10_layer_status
 //!   TC-START-11 -> tc_start_11_out_of_scope_rows_recorded_verbatim
@@ -71,24 +71,18 @@ struct Case {
 fn run_with(
     prepare: impl FnOnce(&StubRecordPair),
     timeout: u64,
-    proxy_env: Option<&str>,
     extra_env: &[(&str, &str)],
 ) -> Case {
     let hometown = ScriptedStub::new(vec![Reply::json(200, ANSWER)]);
     let olive = ScriptedStub::new(vec![Reply::empty(500)]);
     let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
-    write_test_config(
-        fixture.directory(),
-        hometown.base_url(),
-        olive.base_url(),
-        timeout,
-    );
+    write_test_config(fixture.directory(), timeout);
     prepare(&fixture);
     let output = run_liam(
         EXE,
         &fixture,
-        proxy_env.unwrap_or(proxy.url()),
+        proxy.service_base(),
         &[
             "--purpose",
             "servicing",
@@ -108,7 +102,7 @@ fn run_with(
 }
 
 fn run_case(prepare: impl FnOnce(&StubRecordPair)) -> Case {
-    run_with(prepare, 5, None, &[])
+    run_with(prepare, 5, &[])
 }
 
 impl Case {
@@ -206,50 +200,43 @@ fn tc_start_05_empty_expected_arm_outside_stub_mode() {
     let receipt = fs::read_to_string(fixture.receipt_path()).unwrap();
     let agent = fs::read_to_string(fixture.agent_path()).unwrap();
     let policy = liam::receipt::StartupPolicy::for_stub("liam", "servicing", "", 4, 120, 5, 5);
-    let error = liam::receipt::validate_startup(&receipt, &agent, &policy, 0, now(), proxy_port)
+    let error = liam::receipt::validate_startup(&receipt, &agent, &policy, 0, now())
         .unwrap_err();
     assert_eq!(error.0, "receipt:token_arm");
 }
 
 #[test]
-fn tc_start_08_proxy_env_unset() {
-    // Variables present but empty.
-    let case = run_with(|_| {}, 5, Some(""), &[]);
-    case.assert_refused(11, "env:no_proxy");
-    // Variables genuinely absent from the process environment.
-    let hometown = ScriptedStub::new(vec![Reply::json(200, ANSWER)]);
-    let olive = ScriptedStub::new(vec![Reply::empty(500)]);
-    let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
-    let fixture = StubRecordPair::for_proxy(proxy.port());
-    write_test_config(
-        fixture.directory(),
-        hometown.base_url(),
-        olive.base_url(),
-        5,
-    );
-    let output = std::process::Command::new(EXE)
-        .current_dir(fixture.directory())
-        .args(["--purpose", "servicing", "--party", "p", "--question", "q"])
-        .env("LIAM_STUBS", "1")
-        .env("LIAM_STUB_PID", "0")
-        .env_remove("HTTPS_PROXY")
-        .env_remove("HTTP_PROXY")
-        .env_remove("NO_PROXY")
-        .env_remove("https_proxy")
-        .env_remove("http_proxy")
-        .env("NONO_RECEIPT_PATH", fixture.receipt_path())
-        .env("NONO_AGENT_RECORD_PATH", fixture.agent_path())
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(11));
-    assert_eq!(
-        String::from_utf8_lossy(&output.stderr),
-        "liam: 11 env:no_proxy\n"
-    );
-    let stats = proxy.stats();
-    assert_eq!(stats.hometown_hits + stats.olive_hits, 0);
-    assert_eq!(hometown.count(), 0);
-    assert!(!fixture.directory().join("runs").exists());
+fn tc_start_08_service_url_unset() {
+    for var in ["NONO_SERVICE_HOMETOWN_URL", "NONO_SERVICE_OLIVE_URL"] {
+        // Variable present but empty.
+        let case = run_with(|_| {}, 5, &[(var, "")]);
+        case.assert_refused(11, "env:service_url_missing");
+        // Variable genuinely absent from the process environment.
+        let hometown = ScriptedStub::new(vec![Reply::json(200, ANSWER)]);
+        let olive = ScriptedStub::new(vec![Reply::empty(500)]);
+        let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
+        let fixture = StubRecordPair::for_proxy(proxy.port());
+        write_test_config(fixture.directory(), 5);
+        let mut command = common::liam_command(
+            EXE,
+            &fixture,
+            proxy.service_base(),
+            &["--purpose", "servicing", "--party", "p", "--question", "q"],
+            &[],
+        );
+        command.env_remove(var);
+        let output = command.output().unwrap();
+        assert_eq!(output.status.code(), Some(11));
+        assert_eq!(
+            String::from_utf8_lossy(&output.stderr),
+            "liam: 11 env:service_url_missing
+"
+        );
+        let stats = proxy.stats();
+        assert_eq!(stats.hometown_hits + stats.olive_hits, 0);
+        assert_eq!(hometown.count(), 0);
+        assert!(!fixture.directory().join("runs").exists());
+    }
 }
 
 #[test]
@@ -369,7 +356,7 @@ fn tc_start_15_profile_and_port() {
             a["proxy_port"] = json!(if port == 65000 { 65001 } else { 65000 });
         })
     });
-    case.assert_refused(10, "agent_record:proxy_port");
+    case.assert_refused(11, "env:service_url_port");
 }
 
 #[test]
@@ -421,18 +408,13 @@ fn unset_local_app_data_exits_11_before_any_request() {
     let olive = ScriptedStub::new(vec![Reply::empty(500)]);
     let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
-    write_test_config(
-        fixture.directory(),
-        hometown.base_url(),
-        olive.base_url(),
-        5,
-    );
+    write_test_config(fixture.directory(), 5);
     set_config(&fixture, "runs_dir", "%LOCALAPPDATA%/Fiskroad/liam/runs");
     for local_app_data in [None, Some("")] {
         let mut command = common::liam_command(
             EXE,
             &fixture,
-            proxy.url(),
+            proxy.service_base(),
             &["--purpose", "servicing", "--party", "p", "--question", "q"],
             &[],
         );
