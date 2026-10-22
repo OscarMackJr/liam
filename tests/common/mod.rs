@@ -15,23 +15,11 @@ fn slash(value: &Path) -> String {
     value.to_string_lossy().replace('\\', "/")
 }
 
-pub fn write_test_config(dir: &Path, hometown_url: &str, olive_url: &str, timeout_seconds: u64) {
-    write_test_config_with_runs(
-        dir,
-        hometown_url,
-        olive_url,
-        timeout_seconds,
-        &dir.join("runs"),
-    );
+pub fn write_test_config(dir: &Path, timeout_seconds: u64) {
+    write_test_config_with_runs(dir, timeout_seconds, &dir.join("runs"));
 }
 
-pub fn write_test_config_with_runs(
-    dir: &Path,
-    hometown_url: &str,
-    olive_url: &str,
-    timeout_seconds: u64,
-    runs_dir: &Path,
-) {
+pub fn write_test_config_with_runs(dir: &Path, timeout_seconds: u64, runs_dir: &Path) {
     let root = std::env::current_dir().unwrap();
     let vocab = root.join("contracts/vendored/vocabulary.yaml");
     let catalog = root.join("contracts/catalog-0.4.json");
@@ -44,10 +32,8 @@ profile_min_version = 4
 record_max_age_seconds = 120
 expected_token_arm = ""
 [hometown]
-base_url = "{hometown_url}"
 timeout_seconds = {timeout_seconds}
 [olive]
-base_url = "{olive_url}"
 catalog_path = '{catalog}'
 catalog_version = "0.4"
 timeout_seconds = {timeout_seconds}
@@ -68,11 +54,11 @@ runs_dir = '{runs}'
 pub fn run_liam(
     exe: &str,
     fixture: &StubRecordPair,
-    proxy_url: &str,
+    service_base: &str,
     args: &[&str],
     extra_env: &[(&str, &str)],
 ) -> Output {
-    liam_command(exe, fixture, proxy_url, args, extra_env)
+    liam_command(exe, fixture, service_base, args, extra_env)
         .output()
         .unwrap()
 }
@@ -81,7 +67,7 @@ pub fn run_liam(
 pub fn liam_command(
     exe: &str,
     fixture: &StubRecordPair,
-    proxy_url: &str,
+    service_base: &str,
     args: &[&str],
     extra_env: &[(&str, &str)],
 ) -> Command {
@@ -91,9 +77,18 @@ pub fn liam_command(
         .args(args)
         .env("LIAM_STUBS", "1")
         .env("LIAM_STUB_PID", "0")
-        .env("HTTPS_PROXY", proxy_url)
-        .env("HTTP_PROXY", proxy_url)
-        .env("NO_PROXY", "")
+        .env_remove("HTTPS_PROXY")
+        .env_remove("HTTP_PROXY")
+        .env_remove("NO_PROXY")
+        .env_remove("NONO_SERVICE_GATEWAY_URL")
+        .env(
+            "NONO_SERVICE_HOMETOWN_URL",
+            format!("{service_base}/svc/hometown"),
+        )
+        .env(
+            "NONO_SERVICE_OLIVE_URL",
+            format!("{service_base}/svc/olive"),
+        )
         .env("NONO_RECEIPT_PATH", fixture.receipt_path())
         .env("NONO_AGENT_RECORD_PATH", fixture.agent_path())
         .envs(extra_env.iter().copied());
