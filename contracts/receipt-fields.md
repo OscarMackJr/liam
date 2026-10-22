@@ -11,7 +11,7 @@ Liam §4.2 rewrite; Liam must not infer or invent an alternate record.
 ## Phase 2 gate 1 diff: pinned commit `cf3ebc56` (2026-10-22)
 
 Status: **STOP FOR REVIEW.** Verdict MISMATCH. Comparison source: read-only
-reading of `OscarMackJr/nono` at `cf3ebc56e1074980236f89100145c86aa3f04928`
+reading of `OscarMackJr/nono` at `cf3ebc56e107` (full hash in `.planning/phases/02-real-nono-session/02-SIGNOFF.md`)
 (`nono --version` 0.70.0), including the `nono agent` / `nono-agentd` launch
 path. Liam source is not adapted and nono is not patched.
 
