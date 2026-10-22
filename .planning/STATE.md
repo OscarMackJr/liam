@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-22T12:29:43.299Z"
+last_updated: "2026-10-22T13:34:45.876Z"
 last_activity: 2026-10-22
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 1
   total_plans: 20
   completed_plans: 15
-  percent: 20
+  percent: 17
 stopped_at: Phase 01 complete (12/12) — ready to discuss Phase 2
 ---
 
@@ -61,6 +61,10 @@ Progress: [███████░░░] 70%
 | Phase 01 P12 | 10min | 2 tasks | 8 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 2.1 inserted after Phase 2: Implement Liam amendment v0.4.2 service-URL transport (nono 126.1 replaces CONNECT injection with loopback /svc/<service_id> routes); execution gated on ratification (URGENT)
 
 ### Decisions
 

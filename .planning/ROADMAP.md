@@ -109,6 +109,21 @@ Plans:
 
 - [ ] 02-08-PLAN.md - trace-policy decision, RESULTS.md rows, docs-only commit
 
+### Phase 02.1: Liam service-URL transport (amendment v0.4.2) (INSERTED)
+
+**Goal:** Liam reaches hometown and olive only through nono-proxy's loopback service routes (`NONO_SERVICE_*_URL`, `/svc/<service_id>`), validated against the agent record, with no forward proxy and no name resolution, per `specs/LIAM_AMENDMENT_v0.4.2_service-url-transport.md`
+**Requirements**: XPORT-01, XPORT-02, XPORT-03
+**Depends on:** Phase 1 (code base). Execution gate: the amendment and the matching `NONO_v0.4.2` §2–§3 revision are ratified. Independent of Phase 2's nono re-pin; Phase 2 plans 02-04..02-08 and Phase 3 run on the transport this phase delivers
+**Success Criteria** (what must be TRUE):
+  1. The amendment's Ratification Record is filled before any `src/` change lands
+  2. Every malformed or mismatched service URL case in revised TC-NET-05 exits 11 with its reason, before any connection, with no run record
+  3. A stub run sends only plain HTTP to `/svc/hometown` and `/svc/olive` on `127.0.0.1:<proxy_port>`: no CONNECT, no `Authorization`, resolver count 0 (TC-NET-09, TC-NET-06)
+  4. `liam.toml` has no service `base_url`; revised TC-NET-03 and TC-NET-07 pass; full local suite green
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 02.1 to break down)
+
 ### Phase 3: Live hometown and popeye
 
 **Goal**: Under real nono, Liam gets a governed answer from live hometown through nono-proxy, and popeye's ledger attributes the call to Liam as an agent
