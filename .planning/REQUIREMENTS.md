@@ -26,7 +26,7 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 - [ ] **NONO-01**: A contract-diff checkpoint compares the nono fork's current `EnforcementReceipt`, `AgentSessionRecord` and proxy environment with `contracts/receipt-fields.md`, §4.2 and A5. Any mismatch updates the contract table and README, then stops for review
 - [ ] **NONO-02**: The `token_arm` the fork records for an AppContainer launch on `DirectCli`, and the census against the §4.3 expectancy table, are measured and recorded (O7). Work stops for nono-owner review, and `expected_token_arm` is set only after sign-off
 - [ ] **NONO-03**: Liam launched with `scripts/launch-under-nono.ps1` passes the startup self-check under the real nono fork. A receipt or agent record the user can write is refused (REQ-LIAM-01; TC-START-06)
-- [ ] **NONO-04**: Each refusal case is measured: direct launch outside nono exits 10 or 11 with no network activity (TC-E2E-03); with the WFP service stopped, the session is refused or Liam exits 10 on the census (TC-E2E-04) (TC-E2E-06 moved to Phase 3, see LIVE-02)
+- [x] **NONO-04**: Each refusal case is measured: direct launch outside nono exits 10 or 11 with no network activity (TC-E2E-03); with the WFP service stopped, the session is refused or Liam exits 10 on the census (TC-E2E-04) (TC-E2E-06 moved to Phase 3, see LIVE-02)
 - [ ] **NONO-05**: Under a real session, Liam spawns zero child processes (TC-SEC-01), touches only its file grants (TC-SEC-02) and makes zero DNS queries from its own PID (TC-NET-08) (REQ-LIAM-03/11)
 
 ### Live Service Integration
@@ -83,7 +83,7 @@ Source of truth: `specs/LIAM_DESIGN_SPEC_v0.4.1.md` §12 (REQ-LIAM-*) and `specs
 | NONO-01 | Phase 2 | Pending |
 | NONO-02 | Phase 2 | Pending |
 | NONO-03 | Phase 2 | Pending |
-| NONO-04 | Phase 2 | Pending |
+| NONO-04 | Phase 2 | Complete |
 | NONO-05 | Phase 2 | Pending |
 | LIVE-01 | Phase 3 | Pending |
 | LIVE-02 | Phase 3 | Pending |

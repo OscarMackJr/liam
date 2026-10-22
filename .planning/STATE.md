@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-22T00:45:33.945Z"
-last_activity: 2026-10-22 -- Phase 2 planning complete
+last_updated: "2026-10-22T01:15:36.865Z"
+last_activity: 2026-10-22
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 20
-  completed_plans: 12
+  completed_plans: 13
   percent: 20
 stopped_at: Phase 01 complete (12/12) — ready to discuss Phase 2
 ---
@@ -21,14 +21,14 @@ stopped_at: Phase 01 complete (12/12) — ready to discuss Phase 2
 See: .planning/PROJECT.md (updated 2026-10-21)
 
 **Core value:** One Liam run, started only inside an enforced nono session, leaves content-free records that join end to end. It holds no credential, reaches nothing but the loopback nono-proxy and executes nothing.
-**Current focus:** Phase 2 — real nono session
+**Current focus:** Phase 02 — real-nono-session
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (real-nono-session) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-10-22 -- Phase 2 planning complete
+Last activity: 2026-10-22
 
 Progress: [██████████] 100%
 
@@ -105,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-10-22T00:19:05.144Z
+Last session: 2026-10-22T01:15:36.856Z
 Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-real-nono-session/02-CONTEXT.md
+Resume file: None
