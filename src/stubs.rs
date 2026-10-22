@@ -16,11 +16,83 @@ pub struct ProxyCapture {
     pub has_authorization: bool,
     pub method: String,
     pub request_count: u32,
+    pub connect_attempts: usize,
 }
 #[derive(Clone, Default)]
 pub struct HometownCapture {
     pub authorization: Option<String>,
     pub body: String,
+}
+
+/// The remainder after a service prefix must be empty or start with `/`.
+fn boundary(rest: &str) -> Option<&str> {
+    (rest.is_empty() || rest.starts_with('/')).then_some(rest)
+}
+
+/// Route an origin-form path to the hometown or olive base.
+fn route_path(url: &str, hometown: &str, olive: &str) -> Option<String> {
+    if let Some(rest) = url.strip_prefix("/svc/hometown").and_then(boundary) {
+        return Some(format!("{}{}", hometown.trim_end_matches('/'), rest));
+    }
+    url.strip_prefix("/svc/olive")
+        .and_then(boundary)
+        .map(|rest| format!("{}{}", olive.trim_end_matches('/'), rest))
+}
+
+fn capture_one(
+    mut request: tiny_http::Request,
+    capture: &Mutex<ProxyCapture>,
+    route: &dyn Fn(&str) -> Option<String>,
+) {
+    let has_authorization = request
+        .headers()
+        .iter()
+        .any(|header| header.field.equiv("Authorization"));
+    let method = request.method().as_str().to_owned();
+    {
+        let mut captured = capture.lock().expect("capture lock");
+        captured.has_authorization |= has_authorization;
+        captured.method = method.clone();
+        captured.request_count += 1;
+        if method.eq_ignore_ascii_case("CONNECT") {
+            captured.connect_attempts += 1;
+        }
+    }
+    if method.eq_ignore_ascii_case("CONNECT") {
+        let _ = request.respond(Response::empty(405));
+        return;
+    }
+    let mut body = Vec::new();
+    let _ = request.as_reader().read_to_end(&mut body);
+    let Some(target) = route(request.url()) else {
+        let _ = request.respond(Response::empty(502));
+        return;
+    };
+    let forwarded = reqwest::blocking::Client::builder()
+        .no_proxy()
+        .build()
+        .ok()
+        .and_then(|client| {
+            client
+                .post(target)
+                .header("Authorization", "Bearer proxy-sentinel")
+                .header("Content-Type", "application/json")
+                .body(body)
+                .send()
+                .ok()
+        })
+        .and_then(|response| {
+            let status = response.status().as_u16();
+            response.bytes().ok().map(|bytes| (status, bytes))
+        });
+    match forwarded {
+        Some((status, bytes)) => {
+            let _ = request.respond(Response::from_data(bytes).with_status_code(status));
+        }
+        None => {
+            let _ = request.respond(Response::empty(502));
+        }
+    }
 }
 
 pub struct CaptureProxy {
@@ -29,147 +101,63 @@ pub struct CaptureProxy {
     _thread: thread::JoinHandle<()>,
 }
 impl CaptureProxy {
+    fn start(
+        requests: usize,
+        threaded: bool,
+        route: impl Fn(&str) -> Option<String> + Send + Sync + 'static,
+    ) -> Self {
+        let server = Server::http("127.0.0.1:0").expect("start capture proxy");
+        let url = format!(
+            "http://{}",
+            server.server_addr().to_ip().expect("IP listener")
+        );
+        let capture = Arc::new(Mutex::new(ProxyCapture::default()));
+        let thread_capture = Arc::clone(&capture);
+        let route = Arc::new(route);
+        let worker = thread::spawn(move || {
+            for _ in 0..requests {
+                let request = server.recv().expect("receive proxied request");
+                let capture = Arc::clone(&thread_capture);
+                let route = Arc::clone(&route);
+                if threaded {
+                    thread::spawn(move || capture_one(request, &capture, &*route));
+                } else {
+                    capture_one(request, &capture, &*route);
+                }
+            }
+        });
+        Self {
+            url,
+            capture,
+            _thread: worker,
+        }
+    }
     pub fn forward_once_to(target_base: &str) -> Self {
         Self::forward_once(target_base, "/v1/agent/answer")
     }
-    pub fn forward_once(target_base: &str, path: &str) -> Self {
-        let server = Server::http("127.0.0.1:0").expect("start capture proxy");
-        let url = format!(
-            "http://{}",
-            server.server_addr().to_ip().expect("IP listener")
-        );
-        let target = format!("{}{}", target_base.trim_end_matches('/'), path);
-        let capture = Arc::new(Mutex::new(ProxyCapture::default()));
-        let thread_capture = Arc::clone(&capture);
-        let worker = thread::spawn(move || {
-            let mut request = server.recv().expect("receive proxied request");
-            let has_authorization = request
-                .headers()
-                .iter()
-                .any(|header| header.field.equiv("Authorization"));
-            let mut captured = thread_capture.lock().expect("capture lock");
-            captured.has_authorization = has_authorization;
-            captured.method = request.method().as_str().to_owned();
-            captured.request_count += 1;
-            drop(captured);
-            let mut body = Vec::new();
-            request
-                .as_reader()
-                .read_to_end(&mut body)
-                .expect("read request body");
-            let response = reqwest::blocking::Client::new()
-                .post(target)
-                .header("Authorization", "Bearer proxy-sentinel")
-                .header("Content-Type", "application/json")
-                .body(body)
-                .send()
-                .expect("forward request");
-            let status = response.status().as_u16();
-            let body = response.bytes().expect("read forwarded response");
-            request
-                .respond(Response::from_data(body).with_status_code(status))
-                .expect("respond to Liam");
-        });
-        Self {
-            url,
-            capture,
-            _thread: worker,
-        }
+    pub fn forward_once(target_base: &str, _path: &str) -> Self {
+        let base = target_base.to_owned();
+        Self::start(1, false, move |url| route_path(url, &base, &base))
     }
     pub fn forward_two(hometown_base: &str, olive_base: &str) -> Self {
-        let server = Server::http("127.0.0.1:0").expect("start capture proxy");
-        let url = format!(
-            "http://{}",
-            server.server_addr().to_ip().expect("IP listener")
-        );
-        let hometown_target = format!("{}/v1/agent/answer", hometown_base.trim_end_matches('/'));
-        let olive_target = format!("{}/v1/proposals", olive_base.trim_end_matches('/'));
-        let capture = Arc::new(Mutex::new(ProxyCapture::default()));
-        let thread_capture = Arc::clone(&capture);
-        let worker = thread::spawn(move || {
-            for target in [hometown_target, olive_target] {
-                let mut request = server.recv().expect("receive proxied request");
-                let has_authorization = request
-                    .headers()
-                    .iter()
-                    .any(|header| header.field.equiv("Authorization"));
-                let mut captured = thread_capture.lock().expect("capture lock");
-                captured.has_authorization |= has_authorization;
-                captured.method = request.method().as_str().to_owned();
-                captured.request_count += 1;
-                drop(captured);
-                let mut body = Vec::new();
-                request
-                    .as_reader()
-                    .read_to_end(&mut body)
-                    .expect("read request body");
-                let response = reqwest::blocking::Client::new()
-                    .post(target)
-                    .header("Authorization", "Bearer proxy-sentinel")
-                    .header("Content-Type", "application/json")
-                    .body(body)
-                    .send()
-                    .expect("forward request");
-                let status = response.status().as_u16();
-                let body = response.bytes().expect("read forwarded response");
-                let _ = request.respond(Response::from_data(body).with_status_code(status));
-            }
-        });
-        Self {
-            url,
-            capture,
-            _thread: worker,
-        }
+        let (hometown, olive) = (hometown_base.to_owned(), olive_base.to_owned());
+        Self::start(2, false, move |url| route_path(url, &hometown, &olive))
     }
-    pub fn forward_two_to(target_base: &str, path: &str) -> Self {
-        let server = Server::http("127.0.0.1:0").expect("start capture proxy");
-        let url = format!(
-            "http://{}",
-            server.server_addr().to_ip().expect("IP listener")
-        );
-        let target = format!("{}{}", target_base.trim_end_matches('/'), path);
-        let capture = Arc::new(Mutex::new(ProxyCapture::default()));
-        let thread_capture = Arc::clone(&capture);
-        let worker = thread::spawn(move || {
-            for _ in 0..2 {
-                let mut request = server.recv().expect("receive proxied request");
-                let has_authorization = request
-                    .headers()
-                    .iter()
-                    .any(|header| header.field.equiv("Authorization"));
-                let mut captured = thread_capture.lock().expect("capture lock");
-                captured.has_authorization |= has_authorization;
-                captured.method = request.method().as_str().to_owned();
-                captured.request_count += 1;
-                drop(captured);
-                let mut body = Vec::new();
-                request
-                    .as_reader()
-                    .read_to_end(&mut body)
-                    .expect("read request body");
-                let target = target.clone();
-                thread::spawn(move || {
-                    let response = reqwest::blocking::Client::new()
-                        .post(target)
-                        .header("Authorization", "Bearer proxy-sentinel")
-                        .header("Content-Type", "application/json")
-                        .body(body)
-                        .send()
-                        .expect("forward request");
-                    let status = response.status().as_u16();
-                    let body = response.bytes().expect("read forwarded response");
-                    let _ = request.respond(Response::from_data(body).with_status_code(status));
-                });
-            }
-        });
-        Self {
-            url,
-            capture,
-            _thread: worker,
-        }
+    pub fn forward_two_to(target_base: &str, _path: &str) -> Self {
+        let base = target_base.to_owned();
+        Self::start(2, true, move |url| route_path(url, &base, &base))
     }
     pub fn url(&self) -> &str {
         &self.url
+    }
+    pub fn service_base(&self) -> &str {
+        &self.url
+    }
+    pub fn hometown_url(&self) -> String {
+        format!("{}/svc/hometown", self.url)
+    }
+    pub fn olive_url(&self) -> String {
+        format!("{}/svc/olive", self.url)
     }
     pub fn port(&self) -> u16 {
         self.url
@@ -747,13 +735,15 @@ pub struct ProxyStats {
     pub gateway_attempts: usize,
     pub refused_count: usize,
     pub inbound_authorization_count: usize,
+    pub connect_attempts: usize,
+    pub paths: Vec<String>,
+    /// Header names of every inbound request, in arrival order.
+    pub header_names: Vec<Vec<String>>,
 }
 
 struct ProxyShared {
     hometown: String,
     olive: String,
-    refuse: Vec<String>,
-    trap: Option<SocketAddr>,
     stats: Mutex<ProxyStats>,
     errors: Mutex<Vec<String>>,
 }
@@ -766,39 +756,18 @@ pub struct TestProxy {
     worker: Option<thread::JoinHandle<()>>,
 }
 
-fn authority_of(base: &str) -> String {
-    base.trim_start_matches("http://")
-        .trim_end_matches('/')
-        .split('/')
-        .next()
-        .unwrap_or_default()
-        .to_owned()
-}
-
-/// Split a request target into (authority, path). Absolute-form targets carry
-/// the authority; origin-form targets fall back to the Host header.
-fn split_target(url: &str, host_header: Option<&str>) -> (String, String) {
-    if let Some(rest) = url.strip_prefix("http://") {
-        return match rest.find('/') {
-            Some(i) => (rest[..i].to_owned(), rest[i..].to_owned()),
-            None => (rest.to_owned(), "/".to_owned()),
-        };
-    }
-    (host_header.unwrap_or_default().to_owned(), url.to_owned())
-}
-
 fn handle_proxy_request(shared: &ProxyShared, mut request: tiny_http::Request) {
-    let host_header = request
-        .headers()
-        .iter()
-        .find(|h| h.field.equiv("Host"))
-        .map(|h| h.value.as_str().to_owned());
-    let (authority, path) = split_target(request.url(), host_header.as_deref());
-    let host = authority.split(':').next().unwrap_or_default().to_owned();
+    let path = request.url().to_owned();
+    let method = request.method().as_str().to_owned();
     let inbound_auth = request
         .headers()
         .iter()
         .any(|h| h.field.equiv("Authorization"));
+    let names: Vec<String> = request
+        .headers()
+        .iter()
+        .map(|h| h.field.as_str().as_str().to_owned())
+        .collect();
     let content_type = request
         .headers()
         .iter()
@@ -806,40 +775,37 @@ fn handle_proxy_request(shared: &ProxyShared, mut request: tiny_http::Request) {
         .map(|h| h.value.as_str().to_owned());
     let mut body = Vec::new();
     let _ = request.as_reader().read_to_end(&mut body);
-    let method = request.method().as_str().to_owned();
 
-    let (target, inject) = if shared.refuse.contains(&host) {
-        let mut stats = locked(&shared.stats);
-        stats.gateway_attempts += 1;
-        if inbound_auth {
-            stats.inbound_authorization_count += 1;
-        }
-        match shared.trap {
-            Some(trap) => {
-                drop(stats);
-                (format!("http://{trap}{path}"), false)
-            }
-            None => {
-                stats.refused_count += 1;
-                drop(stats);
-                let _ = request.respond(Response::empty(403));
-                return;
-            }
-        }
-    } else if authority == shared.hometown || authority == shared.olive {
-        let mut stats = locked(&shared.stats);
-        if authority == shared.hometown {
-            stats.hometown_hits += 1;
-        } else {
-            stats.olive_hits += 1;
-        }
-        if inbound_auth {
-            stats.inbound_authorization_count += 1;
-        }
-        drop(stats);
-        (format!("http://{authority}{path}"), true)
+    let is_connect = method.eq_ignore_ascii_case("CONNECT");
+    let target = if is_connect {
+        None
     } else {
-        locked(&shared.errors).push("unroutable authority".to_owned());
+        route_path(&path, &shared.hometown, &shared.olive)
+    };
+    {
+        let mut stats = locked(&shared.stats);
+        stats.paths.push(format!("{method} {path}"));
+        stats.header_names.push(names);
+        if inbound_auth {
+            stats.inbound_authorization_count += 1;
+        }
+        if is_connect {
+            stats.connect_attempts += 1;
+        } else if target.is_some() {
+            if path.starts_with("/svc/hometown") {
+                stats.hometown_hits += 1;
+            } else {
+                stats.olive_hits += 1;
+            }
+        }
+    }
+    if is_connect {
+        locked(&shared.errors).push("connect refused".to_owned());
+        let _ = request.respond(Response::empty(405));
+        return;
+    }
+    let Some(target) = target else {
+        locked(&shared.errors).push("unroutable path".to_owned());
         let _ = request.respond(Response::empty(502));
         return;
     };
@@ -858,9 +824,7 @@ fn handle_proxy_request(shared: &ProxyShared, mut request: tiny_http::Request) {
         if let Some(content_type) = content_type {
             builder = builder.header("Content-Type", content_type);
         }
-        if inject {
-            builder = builder.header("Authorization", "Bearer proxy-sentinel");
-        }
+        builder = builder.header("Authorization", "Bearer proxy-sentinel");
         let response = builder
             .body(body)
             .send()
@@ -898,16 +862,14 @@ impl TestProxy {
     pub fn new(hometown_base: &str, olive_base: &str) -> Self {
         Self::start(hometown_base, olive_base, None)
     }
-    /// Negative-control mode: `gateway.invalid` is forwarded to the trap.
-    pub fn with_gateway_trap(hometown_base: &str, olive_base: &str, trap: SocketAddr) -> Self {
-        Self::start(hometown_base, olive_base, Some(trap))
+    /// Kept for callers: the trap is never routed to, so it proves zero connections.
+    pub fn with_gateway_trap(hometown_base: &str, olive_base: &str, _trap: SocketAddr) -> Self {
+        Self::start(hometown_base, olive_base, None)
     }
-    fn start(hometown_base: &str, olive_base: &str, trap: Option<SocketAddr>) -> Self {
+    fn start(hometown_base: &str, olive_base: &str, _trap: Option<SocketAddr>) -> Self {
         let shared = Arc::new(ProxyShared {
-            hometown: authority_of(hometown_base),
-            olive: authority_of(olive_base),
-            refuse: vec![GATEWAY_HOST.to_owned()],
-            trap,
+            hometown: hometown_base.trim_end_matches('/').to_owned(),
+            olive: olive_base.trim_end_matches('/').to_owned(),
             stats: Mutex::new(ProxyStats::default()),
             errors: Mutex::new(Vec::new()),
         });
@@ -952,6 +914,15 @@ impl TestProxy {
     }
     pub fn port(&self) -> u16 {
         self.port
+    }
+    pub fn service_base(&self) -> &str {
+        &self.url
+    }
+    pub fn hometown_url(&self) -> String {
+        format!("{}/svc/hometown", self.url)
+    }
+    pub fn olive_url(&self) -> String {
+        format!("{}/svc/olive", self.url)
     }
     pub fn stats(&self) -> ProxyStats {
         locked(&self.shared.stats).clone()
@@ -1037,8 +1008,9 @@ impl Drop for GatewayTrap {
     }
 }
 
-/// Send one plain-http request to the gateway host through the supplied
-/// (proxy-forced) client. "refused" on any non-2xx or transport error.
+/// Send one direct plain-http request to the gateway host through the supplied
+/// single no-proxy client; it fails at the deny-all resolver. "refused" on any
+/// non-2xx or transport error.
 pub fn gateway_attempt(client: &reqwest::blocking::Client) -> &'static str {
     match client.get(format!("http://{GATEWAY_HOST}/")).send() {
         Ok(response) if response.status().is_success() => "allowed",
@@ -1057,15 +1029,6 @@ pub fn gateway_attempt_requested() -> bool {
 mod scripted_tests {
     use super::*;
     use std::time::Instant;
-
-    fn proxied(proxy_url: &str) -> reqwest::blocking::Client {
-        reqwest::blocking::Client::builder()
-            .no_proxy()
-            .proxy(reqwest::Proxy::all(proxy_url).expect("proxy url"))
-            .timeout(Duration::from_secs(10))
-            .build()
-            .expect("client")
-    }
 
     #[test]
     fn scripted_replies_are_ordered_and_last_repeats() {
@@ -1132,16 +1095,17 @@ mod scripted_tests {
         let hometown = ScriptedStub::new(vec![Reply::json(200, "{}")]);
         let olive = ScriptedStub::new(vec![Reply::json(202, "{}")]);
         let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
-        let client = proxied(proxy.url());
+        let pc = crate::clients::build_proxy_client().expect("client");
+        let client = pc.client();
         let r1 = client
-            .post(format!("{}/v1/agent/answer", hometown.base_url()))
+            .post(format!("{}/v1/agent/answer", proxy.hometown_url()))
             .header("Authorization", "Bearer inbound-check")
             .body("{}")
             .send()
             .expect("hometown");
         assert_eq!(r1.status().as_u16(), 200);
         let r2 = client
-            .post(format!("{}/v1/proposals", olive.base_url()))
+            .post(format!("{}/v1/proposals", proxy.olive_url()))
             .body("{}")
             .send()
             .expect("olive");
@@ -1151,10 +1115,50 @@ mod scripted_tests {
         assert_eq!(stats.olive_hits, 1);
         assert_eq!(stats.inbound_authorization_count, 1);
         assert_eq!(stats.gateway_attempts, 0);
+        assert_eq!(stats.connect_attempts, 0);
+        assert_eq!(stats.paths.len(), 2);
         assert!(hometown.requests()[0].authorization_present);
         assert_eq!(hometown.requests()[0].path, "/v1/agent/answer");
         assert!(olive.requests()[0].authorization_present);
         assert!(proxy.errors().is_empty());
+    }
+
+    #[test]
+    fn unroutable_path_is_502_and_recorded() {
+        let hometown = ScriptedStub::new(vec![Reply::json(200, "{}")]);
+        let proxy = TestProxy::new(hometown.base_url(), hometown.base_url());
+        let pc = crate::clients::build_proxy_client().expect("client");
+        let client = pc.client();
+        for path in ["/other", "/svc/hometownX/v1"] {
+            let response = client
+                .post(format!("{}{}", proxy.service_base(), path))
+                .body("{}")
+                .send()
+                .expect("send");
+            assert_eq!(response.status().as_u16(), 502);
+        }
+        assert_eq!(hometown.count(), 0);
+        assert_eq!(proxy.errors().len(), 2);
+    }
+
+    #[test]
+    fn connect_is_counted_and_not_forwarded() {
+        let hometown = ScriptedStub::new(vec![Reply::json(200, "{}")]);
+        let proxy = TestProxy::new(hometown.base_url(), hometown.base_url());
+        let mut stream =
+            std::net::TcpStream::connect(("127.0.0.1", proxy.port())).expect("connect");
+        stream
+            .write_all(b"CONNECT example.invalid:443 HTTP/1.1\r\nHost: example.invalid:443\r\n\r\n")
+            .expect("write");
+        let mut buffer = [0u8; 256];
+        let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+        let _ = stream.read(&mut buffer);
+        let started = Instant::now();
+        while proxy.stats().connect_attempts == 0 && started.elapsed() < Duration::from_secs(5) {
+            thread::sleep(POLL);
+        }
+        assert_eq!(proxy.stats().connect_attempts, 1);
+        assert_eq!(hometown.count(), 0);
     }
 
     #[test]
@@ -1168,32 +1172,26 @@ mod scripted_tests {
     }
 
     #[test]
-    fn gateway_attempt_is_refused_and_trap_untouched() {
-        let hometown = ScriptedStub::new(vec![Reply::empty(200)]);
-        let olive = ScriptedStub::new(vec![Reply::empty(200)]);
+    fn gateway_attempt_is_direct_and_trap_untouched() {
         let trap = GatewayTrap::new();
-        let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
-        let pc = crate::clients::build_proxy_client(proxy.url()).expect("proxy client");
+        let pc = crate::clients::build_proxy_client().expect("client");
         assert_eq!(gateway_attempt(&pc.client()), "refused");
-        let stats = proxy.stats();
-        assert_eq!(stats.gateway_attempts, 1);
-        assert_eq!(stats.refused_count, 1);
         assert_eq!(trap.hits(), 0);
-        assert_eq!(pc.resolver_calls(), 0);
+        assert_eq!(pc.resolver_calls(), 1);
     }
 
     #[test]
-    fn gateway_negative_control_fires_the_trap() {
-        let hometown = ScriptedStub::new(vec![Reply::empty(200)]);
-        let olive = ScriptedStub::new(vec![Reply::empty(200)]);
+    fn gateway_trap_counts_a_direct_connection() {
         let trap = GatewayTrap::new();
-        let proxy =
-            TestProxy::with_gateway_trap(hometown.base_url(), olive.base_url(), trap.addr());
-        let pc = crate::clients::build_proxy_client(proxy.url()).expect("proxy client");
-        assert_eq!(gateway_attempt(&pc.client()), "allowed");
+        let response = reqwest::blocking::Client::builder()
+            .no_proxy()
+            .build()
+            .expect("client")
+            .get(format!("http://{}/", trap.addr()))
+            .send()
+            .expect("send");
+        assert!(response.status().is_success());
         assert_eq!(trap.hits(), 1);
-        assert_eq!(proxy.stats().gateway_attempts, 1);
-        assert_eq!(proxy.stats().refused_count, 0);
     }
 
     #[test]
