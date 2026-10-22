@@ -133,9 +133,9 @@ impl CaptureProxy {
         }
     }
     pub fn forward_once_to(target_base: &str) -> Self {
-        Self::forward_once(target_base, "/v1/agent/answer")
+        Self::forward_once(target_base)
     }
-    pub fn forward_once(target_base: &str, _path: &str) -> Self {
+    pub fn forward_once(target_base: &str) -> Self {
         let base = target_base.to_owned();
         Self::start(1, false, move |url| route_path(url, &base, &base))
     }
@@ -143,7 +143,7 @@ impl CaptureProxy {
         let (hometown, olive) = (hometown_base.to_owned(), olive_base.to_owned());
         Self::start(2, false, move |url| route_path(url, &hometown, &olive))
     }
-    pub fn forward_two_to(target_base: &str, _path: &str) -> Self {
+    pub fn forward_two_to(target_base: &str) -> Self {
         let base = target_base.to_owned();
         Self::start(2, true, move |url| route_path(url, &base, &base))
     }

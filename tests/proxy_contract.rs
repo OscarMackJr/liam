@@ -234,7 +234,7 @@ fn hometown_request_has_no_authorization_before_proxy_injection() {
 #[test]
 fn olive_request_has_no_authorization_before_proxy_injection() {
     let olive = OliveStub::awaiting_approval();
-    let proxy = CaptureProxy::forward_once(olive.base_url(), "/v1/proposals");
+    let proxy = CaptureProxy::forward_once(olive.base_url());
     let client = HttpOliveClient::new(
         build_service_client().unwrap().client(),
         &proxy.olive_url(),
@@ -333,7 +333,7 @@ fn olive_refusal_and_failures_preserve_status_boundaries() {
         200,
         r#"{"proposal_id":"p-1","status":"refused_policy","reason":"policy"}"#,
     );
-    let proxy = CaptureProxy::forward_once(refused.base_url(), "/v1/proposals");
+    let proxy = CaptureProxy::forward_once(refused.base_url());
     let client = HttpOliveClient::new(
         build_service_client().unwrap().client(),
         &proxy.olive_url(),
@@ -355,7 +355,7 @@ fn olive_refusal_and_failures_preserve_status_boundaries() {
     );
     for status in [400, 500] {
         let olive = OliveStub::status(status, "{}");
-        let proxy = CaptureProxy::forward_once(olive.base_url(), "/v1/proposals");
+        let proxy = CaptureProxy::forward_once(olive.base_url());
         let client = HttpOliveClient::new(
             build_service_client().unwrap().client(),
             &proxy.olive_url(),

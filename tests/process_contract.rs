@@ -80,7 +80,7 @@ fn process_run_submits_at_most_one_catalog_valid_proposal() {
 #[test]
 fn process_retries_hometown_once_after_a_server_error() {
     let hometown = HometownStub::server_error_then_answer();
-    let proxy = CaptureProxy::forward_two_to(hometown.base_url(), "/v1/agent/answer");
+    let proxy = CaptureProxy::forward_two_to(hometown.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
     let runs = fixture.directory().join("runs");
     write_test_config(fixture.directory(), 2);
@@ -146,7 +146,7 @@ fn failed_startup_writes_no_evidence() {
 #[test]
 fn repeated_hometown_server_errors_exit_unavailable_after_two_requests() {
     let hometown = HometownStub::server_error_twice();
-    let proxy = CaptureProxy::forward_two_to(hometown.base_url(), "/v1/agent/answer");
+    let proxy = CaptureProxy::forward_two_to(hometown.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
     write_test_config(fixture.directory(), 1);
     let output = run_liam(
@@ -174,7 +174,7 @@ fn repeated_hometown_server_errors_exit_unavailable_after_two_requests() {
 #[test]
 fn repeated_hometown_timeouts_exit_unavailable_after_two_requests_without_olive() {
     let hometown = HometownStub::timeout_twice();
-    let proxy = CaptureProxy::forward_two_to(hometown.base_url(), "/v1/agent/answer");
+    let proxy = CaptureProxy::forward_two_to(hometown.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
     write_test_config(fixture.directory(), 1);
     let output = run_liam(
