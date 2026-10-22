@@ -1,27 +1,36 @@
-# Phase 2 / NONO-01: read-only probe of the pinned nono build vs the installed CLI, service and driver.
+# Phase 2 / NONO-01: read-only probe of the pinned nono build vs the RUNNING dev-registered CLI, services and driver.
 # Non-elevated. Read-only git only. Content-free output: versions, hashes, service names/status. No paths, SIDs or users.
-# Run from the repository root:
+# Services run straight from the nono build tree (ImagePath), so a hash match to the build is trivial; evidence is
+# freshness (LastWriteTime after pin commit), signature, restart-after-build, and --version.
 #   powershell -NoProfile -File scripts/nono-diff-probe.ps1 -PinnedCommit <40-hex> [-PreInstall]
-# -PreInstall downgrades installed-vs-build mismatches to NOTE (expected before the reinstall).
+# -PreInstall downgrades expected pre-rebuild failures (stale build, not restarted, unsigned) to NOTE.
 param(
     [Parameter(Mandatory = $true)][string]$PinnedCommit,
     [switch]$PreInstall
 )
 $ErrorActionPreference = 'Stop'
 $nonoRepo = Join-Path $env:USERPROFILE 'Nono'
-$installDir = Join-Path $env:ProgramFiles 'nono'
 $script:failed = $false
 
 function Out-Line($level, $text) {
     Write-Output ('{0} {1}' -f $level, $text)
     if ($level -eq 'FAIL') { $script:failed = $true }
 }
+function Check($ok, $text, $failText) {
+    if ($ok) { Out-Line 'PASS' $text }
+    elseif ($PreInstall) { Out-Line 'NOTE' "$failText (expected before rebuild)" }
+    else { Out-Line 'FAIL' $failText }
+}
 function Get-Sha($path) {
-    if (-not (Test-Path -LiteralPath $path)) { return $null }
+    if (-not $path -or -not (Test-Path -LiteralPath $path)) { return $null }
     return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
+function Get-ImagePath($pathName) {
+    if ($pathName -match '^\s*"([^"]+)"') { return $Matches[1] }
+    return ($pathName -split '\s+')[0]
+}
 
-# Pin and clean tree (read-only git commands only).
+# Pin and clean tree.
 $head = (git -C $nonoRepo rev-parse HEAD 2>$null)
 if ($PinnedCommit -notmatch '^[0-9a-f]{40}$') { Out-Line 'FAIL' 'pin: -PinnedCommit is not a full 40-character hash' }
 elseif ($head -eq $PinnedCommit) { Out-Line 'PASS' "nono commit: $head" }
@@ -29,43 +38,100 @@ else { Out-Line 'FAIL' 'nono commit: repository HEAD does not equal the pinned c
 $dirty = (git -C $nonoRepo status --porcelain --untracked-files=no 2>$null)
 if ([string]::IsNullOrEmpty($dirty)) { Out-Line 'PASS' 'nono tree: tracked files clean' }
 else { Out-Line 'FAIL' 'nono tree: tracked files have uncommitted changes' }
+$pinTime = $null
+if ($PinnedCommit -match '^[0-9a-f]{40}$') {
+    $iso = (git -C $nonoRepo show -s --format=%cI $PinnedCommit 2>$null)
+    if ($iso) { $pinTime = [DateTimeOffset]::Parse($iso).UtcDateTime; Out-Line 'NOTE' ('pin committer time (UTC): {0:s}Z' -f $pinTime) }
+    else { Out-Line 'FAIL' 'pin: commit time not readable' }
+}
+
+# Pinned Cargo version.
+$pinVersion = $null
+$cargo = Join-Path $nonoRepo 'crates\nono-cli\Cargo.toml'
+if (Test-Path -LiteralPath $cargo) {
+    $m = Select-String -LiteralPath $cargo -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
+    if ($m) { $pinVersion = $m.Matches[0].Groups[1].Value }
+}
+if ($pinVersion) { Out-Line 'NOTE' "pinned Cargo version: $pinVersion" } else { Out-Line 'FAIL' 'pinned Cargo version not readable' }
 
 # Windows build: ver + UBR.
 $cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
 $ver = (& "$env:SystemRoot\System32\cmd.exe" /c ver) | Where-Object { $_ } | Select-Object -First 1
 Out-Line 'NOTE' ('ver + UBR: {0}.{1}' -f $ver.Trim(), $cv.UBR)
 
-# Installed CLI.
-$cmd = Get-Command nono -ErrorAction SilentlyContinue
-if ($cmd) {
-    $v = (& $cmd.Source --version) 2>&1 | Select-Object -First 1
-    Out-Line 'NOTE' "nono --version: $v"
-} else { Out-Line 'FAIL' 'nono.exe not found on PATH' }
-
-# Installed binaries vs the build from the pin.
-$cliPath = if ($cmd) { $cmd.Source } else { Join-Path $installDir 'nono.exe' }
-$pairs = @(
-    @{ Name = 'nono.exe';             Installed = $cliPath; Built = Join-Path $nonoRepo 'target\release\nono.exe' },
-    @{ Name = 'nono-wfp-service.exe'; Installed = Join-Path $installDir 'nono-wfp-service.exe'; Built = Join-Path $nonoRepo 'target\release\nono-wfp-service.exe' },
-    @{ Name = 'nono-wfp-driver.sys';  Installed = Join-Path $installDir 'nono-wfp-driver.sys';  Built = Join-Path $nonoRepo 'crates\nono-cli\data\windows\nono-wfp-driver.sys' }
-)
-foreach ($p in $pairs) {
-    $inst = Get-Sha $p.Installed
-    $built = Get-Sha $p.Built
-    if (-not $inst) { Out-Line 'FAIL' "$($p.Name) installed: missing"; continue }
-    Out-Line 'NOTE' "$($p.Name) installed sha256: $inst"
-    if (-not $built) { Out-Line 'NOTE' "$($p.Name) MATCH: pinned build artifact absent, not compared"; continue }
-    Out-Line 'NOTE' "$($p.Name) built sha256: $built"
-    if ($inst -eq $built) { Out-Line 'PASS' "$($p.Name) MATCH" }
-    elseif ($PreInstall) { Out-Line 'NOTE' "$($p.Name) MATCH: differs from pinned build (expected before reinstall)" }
-    else { Out-Line 'FAIL' "$($p.Name) MATCH: installed differs from pinned build" }
+function Check-Binary($label, $path, $procStart) {
+    if (-not $path -or -not (Test-Path -LiteralPath $path)) { Out-Line 'FAIL' "$label binary: missing"; return }
+    $item = Get-Item -LiteralPath $path
+    Out-Line 'NOTE' "$label sha256: $(Get-Sha $path)"
+    if ($pinTime) {
+        Check ($item.LastWriteTimeUtc -gt $pinTime) "$label built after pin commit" "$label stale build (older than pin commit)"
+    }
+    $sig = Get-AuthenticodeSignature -LiteralPath $path
+    $thumb = if ($sig.SignerCertificate) { $sig.SignerCertificate.Thumbprint.Substring(0, 8) } else { $null }
+    if ($sig.Status -eq 'Valid') { Out-Line 'PASS' "$label signature Valid (signer $thumb)" }
+    elseif ($sig.Status -eq 'NotSigned') { Check $false '' "$label NotSigned" }
+    elseif ($sig.SignerCertificate -and $sig.SignerCertificate.Subject -eq $sig.SignerCertificate.Issuer) {
+        Out-Line 'PASS' "$label signed by self-signed POC cert (signer $thumb, status $($sig.Status))"
+    } else { Out-Line 'FAIL' "$label signature status $($sig.Status)" }
+    if ($procStart) {
+        Check ($procStart -gt $item.LastWriteTimeUtc) "$label process started after binary write" "$label process predates binary (not restarted onto new build)"
+    }
 }
 
-# Services: names, status, start type only.
+# CLI on PATH.
+$cmd = Get-Command nono -ErrorAction SilentlyContinue
+$buildCli = Join-Path $nonoRepo 'target\release\nono.exe'
+if ($cmd) {
+    if ((Test-Path -LiteralPath $buildCli) -and ((Get-Item $cmd.Source).FullName -eq (Get-Item $buildCli).FullName)) { Out-Line 'NOTE' 'nono.exe on PATH is the target\release build' }
+    else { Out-Line 'NOTE' 'nono.exe on PATH is another copy, not target\release' }
+    $v = ((& $cmd.Source --version) 2>&1 | Select-Object -First 1) -as [string]
+    Out-Line 'NOTE' "nono --version: $v"
+    if ($pinVersion) { Check ($v -match [regex]::Escape($pinVersion)) "nono --version matches pinned $pinVersion" "nono --version does not match pinned $pinVersion" }
+    Check-Binary 'nono.exe' $cmd.Source $null
+} else { Out-Line 'FAIL' 'nono.exe not found on PATH' }
+
+# Services: resolve binary from ImagePath.
+$progFiles = Join-Path $env:ProgramFiles 'nono'
 foreach ($pattern in @('nono-wfp-service', 'nono-agentd_*')) {
     $svcs = @(Get-Service -Name $pattern -ErrorAction SilentlyContinue)
     if ($svcs.Count -eq 0) { Out-Line 'NOTE' "service ${pattern}: not installed"; continue }
-    foreach ($s in $svcs) { Out-Line 'NOTE' ('service {0}: {1} / {2}' -f $s.Name, $s.Status, $s.StartType) }
+    foreach ($s in $svcs) {
+        Out-Line 'NOTE' ('service {0}: {1} / {2}' -f $s.Name, $s.Status, $s.StartType)
+        $cim = Get-CimInstance Win32_Service -Filter ("Name='{0}'" -f $s.Name)
+        $img = Get-ImagePath $cim.PathName
+        $procStart = $null
+        if ($cim.ProcessId -gt 0) {
+            $p = Get-Process -Id $cim.ProcessId -ErrorAction SilentlyContinue
+            if ($p -and $p.StartTime) { $procStart = $p.StartTime.ToUniversalTime() }
+            if (-not $procStart) {
+                $cp = Get-CimInstance Win32_Process -Filter ("ProcessId={0}" -f $cim.ProcessId) -ErrorAction SilentlyContinue
+                if ($cp -and $cp.CreationDate) { $procStart = $cp.CreationDate.ToUniversalTime() }
+            }
+            if (-not $procStart) { Out-Line 'NOTE' "$($s.Name) process start time unreadable: restart check skipped" }
+        } else { Out-Line 'NOTE' "$($s.Name) not running: restart check skipped" }
+        Check-Binary ("$($s.Name) [" + (Split-Path -Leaf $img) + ']') $img $procStart
+        if ($img -like "$progFiles*") { Out-Line 'NOTE' "$($s.Name) runs from the Program Files install" }
+        else { Out-Line 'NOTE' "$($s.Name) runs from a dev registration outside Program Files (Program Files copy, if any, is unused)" }
+    }
+}
+
+# Driver: checked-in .sys vs the installed driver found via the system-driver registration.
+$built = Join-Path $nonoRepo 'crates\nono-cli\data\windows\nono-wfp-driver.sys'
+$drv = @(Get-CimInstance Win32_SystemDriver -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'nono*' })
+$drvPath = $null
+if ($drv.Count -gt 0) {
+    $raw = $drv[0].PathName -replace '^\\\?\?\\', '' -replace '^\\SystemRoot', $env:SystemRoot
+    if (Test-Path -LiteralPath $raw) { $drvPath = $raw }
+    Out-Line 'NOTE' "driver registration: $($drv[0].Name) / $($drv[0].State)"
+} else { Out-Line 'NOTE' 'driver registration: no nono system driver found' }
+$instSha = Get-Sha $drvPath
+$builtSha = Get-Sha $built
+if (-not $instSha) { Out-Line 'NOTE' 'nono-wfp-driver.sys installed: not located via registration' }
+elseif (-not $builtSha) { Out-Line 'NOTE' 'nono-wfp-driver.sys MATCH: checked-in artifact absent, not compared' }
+else {
+    Out-Line 'NOTE' "nono-wfp-driver.sys installed sha256: $instSha"
+    Out-Line 'NOTE' "nono-wfp-driver.sys checked-in sha256: $builtSha"
+    Check ($instSha -eq $builtSha) 'nono-wfp-driver.sys MATCH' 'nono-wfp-driver.sys MATCH: installed differs from checked-in'
 }
 
 if ($script:failed) { exit 1 }

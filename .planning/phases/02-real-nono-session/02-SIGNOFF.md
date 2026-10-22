@@ -15,6 +15,7 @@ receipt version:
 ver + UBR: Microsoft Windows [Version 10.0.26200.9711] UBR 9711
 date:
 measured values:
+notes: Deviation (Rule 3 / plan assumption, user decision): nono services are a dev registration running from the nono build tree (targetelease), not an MSI install under Program Files. No MSI is used; the user stops services, rebuilds and signs in place with the POC self-signed cert, then restarts them (scripts/nono-reinstall.ps1 -Stop / -Start). Pin evidence per binary: LastWriteTime after pin commit, Authenticode Valid or POC self-signed, service process started after binary write, nono --version equals pinned Cargo version. Program Files copy is unused.
 approval: [pending]
 
 ## 2. O7 token_arm and census (NONO-02)
