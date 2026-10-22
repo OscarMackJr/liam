@@ -99,6 +99,13 @@ pub fn check_service_port(url_port: u16, record_port: u16) -> Result<(), &'stati
         Err("env:service_url_port")
     }
 }
+/// Text of a service-URL env value for `validated_service_url`: absent is
+/// empty (`missing`); present but not valid Unicode keeps a replacement
+/// character so it is reported as `not_loopback`, never as `missing`.
+pub fn service_url_text(value: Option<std::ffi::OsString>) -> String {
+    value.map_or_else(String::new, |v| v.to_string_lossy().into_owned())
+}
+
 /// Resolves the evidence `runs_dir` before any network request. The only
 /// placeholder is `%LOCALAPPDATA%`; it must expand from a non-empty
 /// `local_app_data`, no `%` may remain, and the result must be absolute, so
@@ -120,7 +127,9 @@ pub fn resolve_runs_dir(path: &str, local_app_data: Option<&str>) -> Result<Stri
 
 #[cfg(test)]
 mod tests {
-    use super::{check_service_port, resolve_runs_dir, sha256_hex, validated_service_url};
+    use super::{
+        check_service_port, resolve_runs_dir, service_url_text, sha256_hex, validated_service_url,
+    };
 
     #[test]
     fn runs_dir_must_expand_to_an_absolute_path() {
@@ -160,6 +169,20 @@ mod tests {
         assert_eq!(url.port, 50413);
         assert_eq!(url.url, "http://127.0.0.1:50413/svc/hometown");
         assert!(validated_service_url("http://127.0.0.1:1/svc/olive", "/svc/olive").is_ok());
+    }
+
+    #[test]
+    fn non_unicode_service_url_is_not_missing() {
+        use std::os::windows::ffi::OsStringExt;
+        let bad = std::ffi::OsString::from_wide(&[0xD800]);
+        assert_eq!(
+            validated_service_url(&service_url_text(Some(bad)), "/svc/hometown"),
+            Err("env:service_url_not_loopback")
+        );
+        assert_eq!(
+            validated_service_url(&service_url_text(None), "/svc/hometown"),
+            Err("env:service_url_missing")
+        );
     }
 
     #[test]

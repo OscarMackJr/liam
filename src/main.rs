@@ -7,7 +7,10 @@ use liam::{
         },
         olive::{HttpOliveClient, OliveError},
     },
-    config::{check_service_port, load, resolve_runs_dir, sha256_hex, validated_service_url},
+    config::{
+        check_service_port, load, resolve_runs_dir, service_url_text, sha256_hex,
+        validated_service_url,
+    },
     console::printable,
     evidence::{Evidence, ProposalOutcome},
     receipt::{ensure_not_writable, validate_startup, StartupPolicy},
@@ -142,12 +145,12 @@ fn main() {
     let runs_dir = resolve_runs_dir(&config.evidence.runs_dir, local_app_data.as_deref())
         .unwrap_or_else(|reason| fail(11, reason));
     let hometown_url = validated_service_url(
-        &env::var("NONO_SERVICE_HOMETOWN_URL").unwrap_or_default(),
+        &service_url_text(env::var_os("NONO_SERVICE_HOMETOWN_URL")),
         "/svc/hometown",
     )
     .unwrap_or_else(|reason| fail(11, reason));
     let olive_url = validated_service_url(
-        &env::var("NONO_SERVICE_OLIVE_URL").unwrap_or_default(),
+        &service_url_text(env::var_os("NONO_SERVICE_OLIVE_URL")),
         "/svc/olive",
     )
     .unwrap_or_else(|reason| fail(11, reason));
