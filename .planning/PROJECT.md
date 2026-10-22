@@ -15,7 +15,7 @@ One Liam run, started only inside an enforced nono session, leaves content-free 
 <!-- Existing capabilities at commit 50b1659 (v0.4.0 + D14), verified locally against stubs. See RESULTS.md. -->
 
 - ✓ Startup self-check of the nono receipt (schema 2) and agent-session record (schema 1), with Liam-owned 14-layer expectancy table (REQ-LIAM-01, partial: no ACL/real-nono harness) — existing
-- ✓ Proxy environment required and validated: `http://127.0.0.1:<port>` in both vars, empty `NO_PROXY` (REQ-LIAM-02) — existing
+- ~~Proxy environment required and validated: `http://127.0.0.1:<port>` in both vars, empty `NO_PROXY` (REQ-LIAM-02)~~ — superseded in Phase 02.1 (amendment v0.4.2): forward-proxy vars are ignored and never read
 - ✓ D14 transport: single reqwest client, `no_proxy()` + explicit proxy, `DenyAllResolver`, no Liam-side allowlist (REQ-LIAM-03, partial) — existing
 - ✓ No `Authorization` header; proxy-side key injection; key failure fails without retry (REQ-LIAM-04, partial) — existing
 - ✓ `run_id` / `nono_session_id` / `trace_ref` metadata on requests (REQ-LIAM-05) — existing
@@ -28,6 +28,10 @@ One Liam run, started only inside an enforced nono session, leaves content-free 
 <!-- Validated in Phase 1: v0.4.1 Conformance (2026-10-21), against stubs. See RESULTS.md at Liam commit d573907. -->
 
 - ✓ D15 / REQ-LIAM-19: proposal forwarded to olive exactly as hometown returned it, with no coercion, defaulting, stripping or normalising — Phase 1
+
+<!-- Validated in Phase 02.1: service-URL transport (2026-10-22), against stubs. RESULTS.md at Liam commit d2bcb84. -->
+
+- ✓ D14 revised (amendment v0.4.2, ratified 2026-10-22): hometown/olive reached only via `NONO_SERVICE_HOMETOWN_URL` / `NONO_SERVICE_OLIVE_URL` = `http://127.0.0.1:<proxy_port>/svc/<service_id>`, validated against the agent record; no forward proxy; `DenyAllResolver` kept; no `base_url` in `liam.toml` (XPORT-01..03; TC-NET-03/05/06/07/09) — Phase 02.1
 - ✓ D16 / REQ-LIAM-20: hometown and olive exit reasons come from the `{"error": "<code>"}` body, falling back to status (exit 21/22 per §5.4/§7.4) — Phase 1
 - ✓ D17 / REQ-LIAM-21: `--question` outside 1..4000 chars → exit 11 `input:question_length` before any request — Phase 1
 - ✓ S-HT-1 and S-OL-1 stubs, contracts/ schemas and README updated to the v0.4.1 §5/§7 shapes (four-key proposal, new error codes, olive v1 responses) — Phase 1
@@ -95,6 +99,7 @@ One Liam run, started only inside an enforced nono session, leaves content-free 
 | O7: measure token_arm under real nono, then stop for nono-owner review | AGENTS.md stop rule: Liam doesn't guess the value | — Pending |
 | Contract-diff checkpoint phase per real service (hometown, olive, nono) | Mismatches are stop conditions and need explicit review gates | — Pending |
 | E2E on this dev machine with all services local | Available environment; managed-endpoint run not required for POC-2 | — Pending |
+| Service-URL transport instead of CONNECT injection (amendment v0.4.2) | nono-proxy cannot inject into a TLS tunnel without terminating TLS; loopback routes keep one destination class and no DNS in Liam | ✓ Ratified 2026-10-22, implemented Phase 02.1 (d2bcb84) |
 
 ## Evolution
 
@@ -114,4 +119,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-21 after Phase 1 (v0.4.1 Conformance)*
+*Last updated: 2026-10-22 after Phase 02.1 (service-URL transport); Phase 2 blocked at gate 1 on nono Phase 126.1*
