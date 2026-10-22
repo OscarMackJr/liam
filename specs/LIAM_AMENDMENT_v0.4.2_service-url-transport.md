@@ -114,7 +114,7 @@ Retired: `env:proxy_not_loopback`, `env:no_proxy_nonempty` (unless O-A keeps a r
 
 ## 8. Open Items
 
-- **O-A.** Whether Liam refuses to start when `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` are set in an agent session. Depends on what nono sets (asked).
+- **O-A.** Resolved by nono facts (126.1 plan head `ea68b3cf`, 2026-10-22): agent sessions always set `HTTPS_PROXY`/`HTTP_PROXY` (and lowercase forms) to `http://nono:<session token>@127.0.0.1:<proxy_port>`, plus `NODE_USE_ENV_PROXY=1`, `NONO_PROXY_TOKEN`, `NONO_NO_PROXY`, and `NO_PROXY=localhost,127.0.0.1[,bypass hosts]`. Liam therefore **ignores** all forward-proxy variables (refusing would refuse every real session). Because these values carry a session token, Liam must never read, parse, log or echo them; the TC-NET-03 static check should confirm no remaining `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` reads in non-test source. (Under v0.4.1 D14, Liam's exact-form check would have refused these real values anyway.)
 - **O-B.** Whether `injected_on` must contain both `hometown` and `olive` as a Liam startup check (currently implied by the record's content-free validation; make explicit at ratification).
 - **O-C.** Resolved: C3 by derivation, no `NONO_v0.4.3` change.
 - **O-D.** nono facts to record at ratification: CONNECT refusal is host-normalized for `inject_on` FQDNs only, other hosts follow the profile allowlist (a Liam profile allowing no other hosts gets no CONNECT); only `inject_on` services get `NONO_SERVICE_*`; inherited `NONO_SERVICE_*`, `NONO_RECEIPT_PATH`, `NONO_AGENT_RECORD_PATH` are scrubbed; every agent profile declares the gateway FQDN (supervisor derives the popeye exchange URL from it) but the child gets no gateway URL unless gateway is in `inject_on`.
