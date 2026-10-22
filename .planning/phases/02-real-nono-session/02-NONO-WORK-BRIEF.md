@@ -54,3 +54,10 @@ Liam's Phase 2 cannot run against nono `cf3ebc56`. The specs nono must implement
 1. nono commit implementing the above, clean tracked tree, tests for REQ-END-18..25 passing.
 2. Liam re-pins to that commit (02-02 stop / build + sign / start, probe passes).
 3. Liam re-runs 02-03; verdict `match` (or a mismatch the nono owner resolves) and gate 1 `approved`.
+
+## Owner decisions (2026-10-22, relayed by the nono session)
+
+- Tracked as nono Phase 126.1 "Agent-Key Session Contract" (nono ROADMAP commit `87279a8b`), discuss → plan → execute with review. Not yet built.
+- The v0.4.1 agent-key exchange **replaces** the `session_credential.rs` v0.1 scaffold.
+- Purpose stays on `nono run --profile <p> --purpose <p>`, matching `scripts/launch-under-nono.ps1`. The nono session will warn before any change lands.
+- `4df47f0f` must never be pinned (WR-05 perturbation). Clean heads are `cf3ebc56` and later.

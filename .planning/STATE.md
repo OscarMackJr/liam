@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-22T12:01:52.120Z"
+last_updated: "2026-10-22T12:29:43.299Z"
 last_activity: 2026-10-22
 progress:
   total_phases: 5
@@ -91,6 +91,7 @@ None yet.
 - Phases 2–4: these need builds of the nono fork, hometown §2.6, olive v1 and popeye key exchange on this machine. The user reports they are available or soon available.
 - Resolved in Phase 1 (01-12): `liam.toml` pins the canonical vocabulary hash `60a44f00…`, sourced from `fiskroad/contracts/vocabulary.yaml`.
 - Phase 2 STOPPED at gate 1 (02-03, 2026-10-22): nono cf3ebc56 does not emit Liam's contract (schema 1 receipt, 13 layers, no AgentKeyInjection, no AgentSessionRecord, no NONO_RECEIPT_PATH/NONO_AGENT_RECORD_PATH, no --purpose). Resume needs nono work + re-pin + re-run 02-03, or §4 re-ratification with NONO_v0.4.3. Plans 02-04..02-08 not run.
+- Resume trigger for Phase 2: nono Phase 126.1 (Agent-Key Session Contract, nono ROADMAP 87279a8b) delivers a commit with REQ-END-18..25 passing; the nono session will message liam-ed the hash. See 02-NONO-WORK-BRIEF.md.
 
 ### Quick Tasks Completed
 
