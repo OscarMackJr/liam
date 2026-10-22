@@ -83,7 +83,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02-PLAN.md - pin nono commit, reinstall service/driver, diff probe
+- [x] 02-02-PLAN.md - pin nono commit, reinstall service/driver, diff probe
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -157,7 +157,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. v0.4.1 Conformance | 12/12 | Complete    | 2026-10-21 |
-| 2. Real nono Session | 1/8 | In Progress|  |
+| 2. Real nono Session | 2/8 | In Progress|  |
 | 3. Live hometown and popeye | 0/TBD | Not started | - |
 | 4. Live olive | 0/TBD | Not started | - |
 | 5. End-to-End Evidence | 0/TBD | Not started | - |

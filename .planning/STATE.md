@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-22T01:49:40.280Z"
+last_updated: "2026-10-22T11:46:49.891Z"
 last_activity: 2026-10-22
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 20
-  completed_plans: 13
+  completed_plans: 14
   percent: 20
 stopped_at: Phase 01 complete (12/12) — ready to discuss Phase 2
 ---
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-10-21)
 ## Current Position
 
 Phase: 02 (real-nono-session) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-10-22
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -78,6 +78,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-10: numeric key_id reports agent_record:parse vs spec key_id (defect, test ignored); TC-KEY-03 scanner has named exceptions
 - [Phase 01]: 01-11: RESULTS measured on main checkout at 05c83ef (clean status), not a fresh clone, due to known vendor CRLF defect
 - [Phase 01]: Vendored canonical vocabulary with contracts/vendored/** -text; pinned 60a44f00
+- [Phase 02]: 02-02: nono services are a dev registration from the build tree (no MSI); reinstall = stop, build+sign, start
+- [Phase 02]: 02-02: nono pin re-pinned 4df47f0f to cf3ebc56e1074980236f89100145c86aa3f04928 (phase-126 round 4 complete, v0.70.0)
 
 ### Pending Todos
 
@@ -88,7 +90,6 @@ None yet.
 - Phase 2: `expected_token_arm` can only be set after nono-owner sign-off on O7. Until then, every non-stub run exits `10 receipt:token_arm`.
 - Phases 2–4: these need builds of the nono fork, hometown §2.6, olive v1 and popeye key exchange on this machine. The user reports they are available or soon available.
 - Resolved in Phase 1 (01-12): `liam.toml` pins the canonical vocabulary hash `60a44f00…`, sourced from `fiskroad/contracts/vocabulary.yaml`.
-- 02-02 Task 3 waiting: nono pin 4df47f0f contains a WR-05 test perturbation; user chose to re-pin to nono-28's final phase-126 commit (after nono-54 WR-05 fix + WR-03/IN-01..03). Then: update pin in 02-SIGNOFF, put Nono\target\release first on PATH, run reinstall -Stop, cargo build + sign (thumbprint B3C55463...), reinstall -Start, probe.
 
 ### Quick Tasks Completed
 
@@ -106,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-10-22T01:15:36.856Z
+Last session: 2026-10-22T11:46:49.881Z
 Stopped at: Phase 2 context gathered
 Resume file: None
