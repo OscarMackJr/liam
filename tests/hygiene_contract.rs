@@ -473,8 +473,10 @@ fn tc_net_05_service_url_variants() {
             assert_eq!(output.status.code(), Some(11), "{var} {value:?}");
             assert_eq!(
                 String::from_utf8_lossy(&output.stderr),
-                format!("liam: 11 {reason}
-"),
+                format!(
+                    "liam: 11 {reason}
+"
+                ),
                 "{var} {value:?}"
             );
             assert_eq!(hometown.count() + olive.count(), 0);

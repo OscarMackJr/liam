@@ -200,8 +200,7 @@ fn tc_start_05_empty_expected_arm_outside_stub_mode() {
     let receipt = fs::read_to_string(fixture.receipt_path()).unwrap();
     let agent = fs::read_to_string(fixture.agent_path()).unwrap();
     let policy = liam::receipt::StartupPolicy::for_stub("liam", "servicing", "", 4, 120, 5, 5);
-    let error = liam::receipt::validate_startup(&receipt, &agent, &policy, 0, now())
-        .unwrap_err();
+    let error = liam::receipt::validate_startup(&receipt, &agent, &policy, 0, now()).unwrap_err();
     assert_eq!(error.0, "receipt:token_arm");
 }
 
