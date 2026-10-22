@@ -10,18 +10,18 @@ Entries hold field names, counts and layer statuses only. No values, SIDs or pat
 
 ## 1. Contract diff (NONO-01)
 
-nono commit:
+nono commit: 4df47f0f4f6c4e1e3062d2d9b09ff633b5428770
 receipt version:
-ver + UBR:
+ver + UBR: Microsoft Windows [Version 10.0.26200.9711] UBR 9711
 date:
 measured values:
 approval: [pending]
 
 ## 2. O7 token_arm and census (NONO-02)
 
-nono commit:
+nono commit: 4df47f0f4f6c4e1e3062d2d9b09ff633b5428770
 receipt version:
-ver + UBR:
+ver + UBR: Microsoft Windows [Version 10.0.26200.9711] UBR 9711
 date:
 measured values:
 approval: [pending]
