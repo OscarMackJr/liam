@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-22T16:04:45.637Z"
+last_updated: "2026-10-22T16:04:56.390Z"
 last_activity: 2026-10-22
 progress:
   total_phases: 6
@@ -59,6 +59,7 @@ Progress: [██████░░░░] 62%
 | Phase 01 P10 | 30min | 3 tasks | 3 files |
 | Phase 01 P11 | 15min | 2 tasks | 1 files |
 | Phase 01 P12 | 10min | 2 tasks | 8 files |
+| Phase 02.1 P01 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,7 @@ Recent decisions affecting current work:
 - [Phase 01]: Vendored canonical vocabulary with contracts/vendored/** -text; pinned 60a44f00
 - [Phase 02]: 02-02: nono services are a dev registration from the build tree (no MSI); reinstall = stop, build+sign, start
 - [Phase 02]: 02-02: nono pin re-pinned 4df47f0f to cf3ebc56e1074980236f89100145c86aa3f04928 (phase-126 round 4 complete, v0.70.0)
+- [Phase 02.1]: [02.1-01] Amendment v0.4.2 ratified 2026-10-22; O-B no injected_on check
 
 ### Pending Todos
 
