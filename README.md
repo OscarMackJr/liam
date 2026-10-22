@@ -27,6 +27,18 @@ neither `nono run` nor `nono agent launch` has `--purpose`. See
 `scripts/launch-under-nono.ps1` (`nono run --purpose`) does not match the fork;
 it is recorded, not rewritten. Liam source is unchanged pending nono-owner review.
 
+**Announced nono deviation (2026-10-22, nono Phase 126.1 context `8a6b3446`, not yet
+built): STOP FOR REVIEW.** nono-proxy does not terminate TLS, so it cannot inject the
+agent key into a CONNECT tunnel as `NONO_v0.4.2` §3 assumes. nono will instead give the
+child per-service reverse-proxy URLs (`NONO_SERVICE_GATEWAY_URL`,
+`NONO_SERVICE_HOMETOWN_URL`, `NONO_SERVICE_OLIVE_URL`) and refuse CONNECT to any
+`inject_on` FQDN in agent sessions. This contradicts Liam D14 (all traffic via CONNECT
+through `HTTPS_PROXY`, base URLs from `liam.toml`) and needs re-ratification of
+`NONO_v0.4.2` §3 and a Liam amendment before Liam changes. Also announced, compatible
+with Liam: records under `%PROGRAMDATA%\nono\receipts\<session_id>\` (resolves
+`NONO_v0.4.3` O3); mint failure spawns no child and writes a Refused receipt with
+`pid=0`; purpose stays on `nono run --profile <p> --purpose <p>`.
+
 ## Current implementation boundary
 
 Liam now performs the startup record checks, validates the pinned vocabulary,
