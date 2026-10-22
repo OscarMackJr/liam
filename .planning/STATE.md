@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
-status: verifying
-last_updated: "2026-10-22T16:31:37.259Z"
+status: ready_to_plan
+last_updated: 2026-10-22T16:34:45.624Z
 last_activity: 2026-10-22
 progress:
   total_phases: 6
@@ -11,7 +11,7 @@ progress:
   total_plans: 26
   completed_plans: 21
   percent: 33
-stopped_at: Phase 01 complete (12/12) — ready to discuss Phase 2
+stopped_at: Phase 02.1 complete (6/6); Phase 2 blocked at gate 1 awaiting nono Phase 126.1
 ---
 
 # Project State
@@ -21,13 +21,13 @@ stopped_at: Phase 01 complete (12/12) — ready to discuss Phase 2
 See: .planning/PROJECT.md (updated 2026-10-21)
 
 **Core value:** One Liam run, started only inside an enforced nono session, leaves content-free records that join end to end. It holds no credential, reaches nothing but the loopback nono-proxy and executes nothing.
-**Current focus:** Phase 02.1 — liam-service-url-transport-amendment-v0-4-2
+**Current focus:** Phase 2 — real-nono-session (blocked at gate 1 until nono Phase 126.1 delivers REQ-END-18..25; then re-pin and re-run 02-03)
 
 ## Current Position
 
-Phase: 02.1 (liam-service-url-transport-amendment-v0-4-2) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
+Phase: 2 (blocked; 3/8 plans) — Phase 02.1 complete
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-10-22
 
 Progress: [████████░░] 81%
@@ -36,7 +36,7 @@ Progress: [████████░░] 81%
 
 **Velocity:**
 
-- Total plans completed: 12
+- Total plans completed: 18
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -45,6 +45,7 @@ Progress: [████████░░] 81%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 12 | - | - |
+| 02.1 | 6 | - | - |
 
 **Recent Trend:**
 
