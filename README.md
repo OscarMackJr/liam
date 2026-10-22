@@ -18,6 +18,15 @@ The supplied nono receipt source is pinned to `OscarMackJr/nono` commit
 resolves that mismatch through a schema-2 receipt and a separate supervisor
 agent-session record. Liam mirrors these contracts without depending on nono.
 
+**Phase 2 gate 1 (2026-10-22): MISMATCH, STOP FOR REVIEW.** The pinned fork
+`cf3ebc56` (nono 0.70.0) does not implement the ratified successor contract: its
+receipt is schema 1 with a 13-layer census (no `AgentKeyInjection`), there is no
+agent-session record, no `NONO_RECEIPT_PATH` / `NONO_AGENT_RECORD_PATH`, and
+neither `nono run` nor `nono agent launch` has `--purpose`. See
+`contracts/receipt-fields.md` and `.planning/phases/02-real-nono-session/02-SIGNOFF.md`.
+`scripts/launch-under-nono.ps1` (`nono run --purpose`) does not match the fork;
+it is recorded, not rewritten. Liam source is unchanged pending nono-owner review.
+
 ## Current implementation boundary
 
 Liam now performs the startup record checks, validates the pinned vocabulary,

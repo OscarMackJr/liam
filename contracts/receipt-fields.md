@@ -8,6 +8,24 @@ Status: **STOP FOR REVIEW.** The current nono receipt cannot satisfy Liam
 v0.3 §4.2. The expected resolution is a NONO v0.4.3 amendment plus a matching
 Liam §4.2 rewrite; Liam must not infer or invent an alternate record.
 
+## Phase 2 gate 1 diff: pinned commit `cf3ebc56` (2026-10-22)
+
+Status: **STOP FOR REVIEW.** Verdict MISMATCH. Comparison source: read-only
+reading of `OscarMackJr/nono` at `cf3ebc56e1074980236f89100145c86aa3f04928`
+(`nono --version` 0.70.0), including the `nono agent` / `nono-agentd` launch
+path. Liam source is not adapted and nono is not patched.
+
+| Current field | Liam use | Comparison |
+|---|---|---|
+| `schema_version: u16` (value 1) | version handling | Contract expects 2. Different. |
+| `session_id`, `pid`, `entry_path`, `outcome` | join / none | Present, as before. |
+| `token_arm: Option<TokenArm>` | confinement check | Present (`Null`, `WriteRestricted`, `LowIlPrimary`, `BrokerLaunch`, `BrokerLaunchNoPty`); same shape as `29557a93`. |
+| `layers` (13 rows) | confinement check | 13 `LayerId` variants; `AgentKeyInjection` absent, so Liam's 14-ID table cannot be satisfied. |
+| `AgentSessionRecord` (schema 1) | agent facts | Absent from all crates. |
+| `NONO_RECEIPT_PATH`, `NONO_AGENT_RECORD_PATH` | record discovery | Not set anywhere. Receipt is written to a machine-wide sink as `<session_id>.jsonl`. |
+| `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | proxy env | Emitted by nono-proxy (plus `NONO_NO_PROXY`, `NONO_PROXY_TOKEN`) only for proxy-mode runs; not verified at runtime. |
+| `--purpose` | launch wrapper | Absent on `nono run` and `nono agent launch` (`--profile` only). |
+
 ## Resolved by NONO v0.4.3 / Liam v0.4
 
 The v0.4.3 package is ratified. It retains the receipt's startup-only,
