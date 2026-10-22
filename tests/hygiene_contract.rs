@@ -5,8 +5,7 @@
 //! TC-NET mapping (no duplicate test added where one exists):
 //!   TC-NET-01 -> process_contract.rs successful_process_run_makes_one_answer_request_and_writes_content_free_evidence
 //!                (stubs are only reachable through the capturing proxy; request counts are taken at the proxy)
-//!   TC-NET-05 -> tc_net_05_proxy_environment_variants below (all seven cases; process_contract.rs
-//!                non_loopback_proxy_environment_fails_before_any_request_or_evidence covers one)
+//!   TC-NET-05 -> tc_net_05_service_url_variants below (revised matrix per service-URL variable)
 //!   TC-NET-06 -> proxy_contract.rs hometown_request_has_no_authorization_before_proxy_injection
 //!                (asserts resolver_calls() == 0), plus the DenyAllResolver unit tests in src/clients/mod.rs
 //!   TC-NET-07 -> proxy_contract.rs explicit_proxy_ignores_the_windows_system_proxy_trap
@@ -75,13 +74,8 @@ impl Run {
 fn run_args(hometown: ScriptedStub, olive: ScriptedStub, args: &[&str]) -> Run {
     let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
-    write_test_config(
-        fixture.directory(),
-        hometown.base_url(),
-        olive.base_url(),
-        2,
-    );
-    let output = run_liam(EXE, &fixture, proxy.url(), args, &[]);
+    write_test_config(fixture.directory(), 2);
+    let output = run_liam(EXE, &fixture, proxy.service_base(), args, &[]);
     Run {
         output,
         proxy,
@@ -340,12 +334,7 @@ fn tc_lvoc_02_modified_vocabulary_exits_11_before_any_request() {
     let olive = ScriptedStub::new(vec![Reply::empty(500)]);
     let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
     let fixture = StubRecordPair::for_proxy(proxy.port());
-    write_test_config(
-        fixture.directory(),
-        hometown.base_url(),
-        olive.base_url(),
-        2,
-    );
+    write_test_config(fixture.directory(), 2);
     let mut bytes = fs::read(repo("contracts/vendored/vocabulary.yaml")).unwrap();
     bytes.push(b'#');
     let modified = fixture.directory().join("vocabulary.yaml");
@@ -361,7 +350,7 @@ fn tc_lvoc_02_modified_vocabulary_exits_11_before_any_request() {
     let output = run_liam(
         EXE,
         &fixture,
-        proxy.url(),
+        proxy.service_base(),
         &["--purpose", "servicing", "--party", "p", "--question", "q"],
         &[],
     );
@@ -386,7 +375,7 @@ fn tc_lvoc_canonical_hash_pinned() {
 // ---- TC-NET-05 ----
 
 #[test]
-fn tc_net_05_proxy_environment_variants() {
+fn tc_net_05_service_url_variants() {
     // A listener on every alternative address; none may see a connection.
     let v4 = TcpListener::bind("127.0.0.1:0").unwrap();
     v4.set_nonblocking(true).unwrap();
@@ -396,75 +385,101 @@ fn tc_net_05_proxy_environment_variants() {
     }
     let p = v4.local_addr().unwrap().port();
     let p6 = v6.as_ref().map_or(p, |l| l.local_addr().unwrap().port());
+    let other_port = p.wrapping_add(1);
 
-    let loopback = format!("http://127.0.0.1:{p}");
-    #[allow(clippy::type_complexity)]
-    let cases: Vec<(String, Vec<(&str, String)>, &str)> = vec![
+    const VARS: [(&str, &str, &str); 2] = [
         (
-            format!("http://localhost:{p}"),
-            vec![],
-            "env:proxy_not_loopback",
+            "NONO_SERVICE_HOMETOWN_URL",
+            "/svc/hometown",
+            "NONO_SERVICE_OLIVE_URL",
         ),
         (
-            format!("http://[::1]:{p6}"),
-            vec![],
-            "env:proxy_not_loopback",
-        ),
-        (
-            format!("http://proxy.lab:{p}"),
-            vec![],
-            "env:proxy_not_loopback",
-        ),
-        (
-            format!("https://127.0.0.1:{p}"),
-            vec![],
-            "env:proxy_not_loopback",
-        ),
-        (
-            format!("http://u:pw@127.0.0.1:{p}"),
-            vec![],
-            "env:proxy_not_loopback",
-        ),
-        (
-            loopback.clone(),
-            vec![(
-                "HTTP_PROXY",
-                format!("http://127.0.0.1:{}", p.wrapping_add(1)),
-            )],
-            "env:proxy_not_loopback",
-        ),
-        (
-            loopback,
-            vec![("NO_PROXY", "hometown.lab".to_owned())],
-            "env:no_proxy_nonempty",
+            "NONO_SERVICE_OLIVE_URL",
+            "/svc/olive",
+            "NONO_SERVICE_HOMETOWN_URL",
         ),
     ];
-    for (https_proxy, extra, reason) in cases {
-        let hometown = ScriptedStub::new(vec![Reply::empty(500)]);
-        let olive = ScriptedStub::new(vec![Reply::empty(500)]);
-        let fixture = StubRecordPair::for_proxy(p);
-        write_test_config(
-            fixture.directory(),
-            hometown.base_url(),
-            olive.base_url(),
-            2,
-        );
-        let extra_refs: Vec<(&str, &str)> = extra.iter().map(|(k, v)| (*k, v.as_str())).collect();
-        let output = run_liam(
-            EXE,
-            &fixture,
-            &https_proxy,
-            &["--purpose", "servicing", "--party", "p", "--question", "q"],
-            &extra_refs,
-        );
-        assert_eq!(output.status.code(), Some(11), "{https_proxy}");
-        assert_eq!(
-            String::from_utf8_lossy(&output.stderr),
-            format!("liam: 11 {reason}\n"),
-            "{https_proxy} {extra:?}"
-        );
-        assert_eq!(hometown.count() + olive.count(), 0);
-        assert!(!fixture.directory().join("runs").exists());
+    for (var, route, other_var) in VARS {
+        let other_route = if route == "/svc/olive" {
+            "/svc/hometown"
+        } else {
+            "/svc/olive"
+        };
+        // None means the variable is genuinely absent.
+        let cases: Vec<(Option<String>, &str)> = vec![
+            (
+                Some(format!("http://localhost:{p}{route}")),
+                "env:service_url_not_loopback",
+            ),
+            (
+                Some(format!("http://[::1]:{p6}{route}")),
+                "env:service_url_not_loopback",
+            ),
+            (
+                Some(format!("http://svc.lab:{p}{route}")),
+                "env:service_url_not_loopback",
+            ),
+            (
+                Some(format!("https://127.0.0.1:{p}{route}")),
+                "env:service_url_not_loopback",
+            ),
+            (
+                Some(format!("http://u:pw@127.0.0.1:{p}{route}")),
+                "env:service_url_not_loopback",
+            ),
+            (
+                Some(format!("http://127.0.0.1:{p}{route}?x=1")),
+                "env:service_url_not_loopback",
+            ),
+            (
+                Some(format!("http://127.0.0.1:{other_port}{route}")),
+                "env:service_url_port",
+            ),
+            (
+                Some(format!("http://127.0.0.1:{p}{other_route}")),
+                "env:service_url_route",
+            ),
+            (
+                Some(format!("http://127.0.0.1:{p}{route}/x")),
+                "env:service_url_route",
+            ),
+            (
+                Some(format!("http://127.0.0.1:{p}/other")),
+                "env:service_url_route",
+            ),
+            (Some(String::new()), "env:service_url_missing"),
+            (None, "env:service_url_missing"),
+        ];
+        for (value, reason) in cases {
+            let hometown = ScriptedStub::new(vec![Reply::empty(500)]);
+            let olive = ScriptedStub::new(vec![Reply::empty(500)]);
+            let fixture = StubRecordPair::for_proxy(p);
+            write_test_config(fixture.directory(), 2);
+            let base = format!("http://127.0.0.1:{p}");
+            let mut command = common::liam_command(
+                EXE,
+                &fixture,
+                &base,
+                &["--purpose", "servicing", "--party", "p", "--question", "q"],
+                &[],
+            );
+            // The other variable keeps its fully valid URL (set by liam_command).
+            let _ = other_var;
+            match &value {
+                Some(v) => command.env(var, v),
+                None => command.env_remove(var),
+            };
+            let output = command.output().unwrap();
+            assert_eq!(output.status.code(), Some(11), "{var} {value:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&output.stderr),
+                format!("liam: 11 {reason}
+"),
+                "{var} {value:?}"
+            );
+            assert_eq!(hometown.count() + olive.count(), 0);
+            assert!(!fixture.directory().join("runs").exists());
+        }
     }
     assert!(v4.accept().is_err(), "listener saw a connection");
     if let Some(v6) = &v6 {
