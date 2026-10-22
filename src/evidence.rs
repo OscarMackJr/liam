@@ -180,6 +180,7 @@ mod tests {
             session_id: "session-1".into(),
             agent_key_id: "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b".into(),
             token_arm: "StubArm".into(),
+            proxy_port: 50413,
             layers_outside_expectancy_scope: vec![(
                 "RestrictedToken".into(),
                 LayerStatus::Unconfirmed,
@@ -214,6 +215,7 @@ mod tests {
             session_id: "s".into(),
             agent_key_id: "k".into(),
             token_arm: "A".into(),
+            proxy_port: 50413,
             layers_outside_expectancy_scope: vec![],
         }
     }

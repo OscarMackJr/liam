@@ -86,6 +86,7 @@ pub struct ValidatedSession {
     pub session_id: String,
     pub agent_key_id: String,
     pub token_arm: String,
+    pub proxy_port: u16,
     pub layers_outside_expectancy_scope: Vec<(String, LayerStatus)>,
 }
 
@@ -124,7 +125,6 @@ pub fn validate_startup(
     policy: &StartupPolicy,
     process_id: u32,
     now_unix: u64,
-    proxy_port: u16,
 ) -> Result<ValidatedSession, StartupError> {
     let receipt: EnforcementReceipt =
         serde_json::from_str(receipt_json).map_err(|_| receipt_error("parse"))?;
@@ -226,9 +226,6 @@ pub fn validate_startup(
     if agent.profile_version < policy.profile_min_version {
         return Err(agent_error("profile_version"));
     }
-    if agent.proxy_port != proxy_port {
-        return Err(agent_error("proxy_port"));
-    }
     if agent.written_at_unix > now_unix + 5
         || now_unix.saturating_sub(agent.written_at_unix) > policy.record_max_age_seconds
     {
@@ -239,6 +236,7 @@ pub fn validate_startup(
         session_id: receipt.session_id,
         agent_key_id: key_id,
         token_arm,
+        proxy_port: agent.proxy_port,
         layers_outside_expectancy_scope: outside_scope,
     })
 }

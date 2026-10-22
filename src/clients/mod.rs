@@ -4,7 +4,6 @@ pub mod olive;
 use reqwest::{
     blocking::Client,
     dns::{Name, Resolve, Resolving},
-    Proxy,
 };
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -44,11 +43,10 @@ impl ProxyClient {
     }
 }
 
-pub fn build_proxy_client(proxy: &str) -> Result<ProxyClient, reqwest::Error> {
+pub fn build_proxy_client() -> Result<ProxyClient, reqwest::Error> {
     let resolver = Arc::new(DenyAllResolver::default());
     let client = Client::builder()
         .no_proxy()
-        .proxy(Proxy::all(proxy)?)
         // One call is one request (design §3.3, §7.4, D12): never follow a redirect.
         .redirect(reqwest::redirect::Policy::none())
         .dns_resolver(Arc::clone(&resolver))
@@ -168,7 +166,7 @@ mod tests {
 
     #[test]
     fn loopback_proxy_client_is_built_with_a_resolver_that_has_not_run() {
-        let client = build_proxy_client("http://127.0.0.1:50413").expect("build client");
+        let client = build_proxy_client().expect("build client");
         assert_eq!(client.resolver_calls(), 0);
     }
 

@@ -37,11 +37,21 @@ mod tests {
         }"#;
         let policy =
             StartupPolicy::for_stub("liam", "servicing", "WriteRestricted", 4, 120, 90, 30);
-        let result = validate_startup(receipt, agent, &policy, 42, 100, 50413);
+        let result = validate_startup(receipt, agent, &policy, 42, 100);
         assert!(
             result.is_ok(),
             "valid supervisor-owned record pair must pass: {result:?}"
         );
+    }
+
+    #[test]
+    fn session_exposes_record_proxy_port_without_comparing_it() {
+        let session =
+            validate_startup(&valid_receipt(), &valid_agent(), &policy(), 42, 100).unwrap();
+        assert_eq!(session.proxy_port, 50413);
+        let other = valid_agent().replace("\"proxy_port\":50413", "\"proxy_port\":50414");
+        let session = validate_startup(&valid_receipt(), &other, &policy(), 42, 100).unwrap();
+        assert_eq!(session.proxy_port, 50414);
     }
 
     #[test]
@@ -50,14 +60,14 @@ mod tests {
             "{\"id\":\"AgentKeyInjection\",\"status\":\"Confirmed\"}",
             "{\"id\":\"AgentKeyInjection\",\"status\":\"Unconfirmed\"}",
         );
-        let result = validate_startup(&receipt, &valid_agent(), &policy(), 42, 100, 50413);
+        let result = validate_startup(&receipt, &valid_agent(), &policy(), 42, 100);
         assert_eq!(result.unwrap_err().0, "receipt:layer:AgentKeyInjection");
     }
 
     #[test]
     fn rejects_an_agent_record_for_a_different_session() {
         let agent = valid_agent().replace("\"session-1\"", "\"other-session\"");
-        let result = validate_startup(&valid_receipt(), &agent, &policy(), 42, 100, 50413);
+        let result = validate_startup(&valid_receipt(), &agent, &policy(), 42, 100);
         assert_eq!(result.unwrap_err().0, "agent_record:session_id");
     }
 
@@ -111,7 +121,7 @@ mod tests {
         ];
         for (receipt, agent, expected) in cases {
             assert_eq!(
-                validate_startup(&receipt, &agent, &policy(), 42, 100, 50413)
+                validate_startup(&receipt, &agent, &policy(), 42, 100)
                     .unwrap_err()
                     .0,
                 expected
