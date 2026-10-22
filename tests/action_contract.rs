@@ -5,7 +5,7 @@ mod common;
 mod jcs;
 
 use common::{read_run_record, run_liam, write_test_config};
-use liam::stubs::{GatewayTrap, Reply, ScriptedStub, StubRecordPair, TestProxy};
+use liam::stubs::{gateway_attempt, GatewayTrap, Reply, ScriptedStub, StubRecordPair, TestProxy};
 use serde_json::{value::RawValue, Value};
 use std::{collections::HashMap, path::PathBuf, process::Output};
 
@@ -41,23 +41,18 @@ struct Case {
 }
 
 fn run_case_with(
-    hometown: &ScriptedStub,
-    olive: &ScriptedStub,
+    _hometown: &ScriptedStub,
+    _olive: &ScriptedStub,
     proxy: TestProxy,
     env: &[(&str, &str)],
 ) -> Case {
     let fixture = StubRecordPair::for_proxy(proxy.port());
     let runs = fixture.directory().join("runs");
-    write_test_config(
-        fixture.directory(),
-        hometown.base_url(),
-        olive.base_url(),
-        5,
-    );
+    write_test_config(fixture.directory(), 5);
     let output = run_liam(
         EXE,
         &fixture,
-        proxy.url(),
+        proxy.service_base(),
         &[
             "--purpose",
             "servicing",
@@ -431,34 +426,7 @@ fn tc_net_04_normal_run_has_zero_trap_hits() {
 }
 
 #[test]
-fn tc_net_04_flagged_run_is_refused_at_proxy() {
-    let trap = GatewayTrap::new();
-    let hometown = ScriptedStub::new(vec![Reply::json(200, &answer_body("null"))]);
-    let olive = idle();
-    let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
-    let case = run_case_with(
-        &hometown,
-        &olive,
-        proxy,
-        &[("LIAM_STUB_GATEWAY_ATTEMPT", "1")],
-    );
-    case.assert_ok_empty_stderr();
-    let stats = case.proxy.stats();
-    assert_eq!(stats.gateway_attempts, 1);
-    assert_eq!(stats.refused_count, 1);
-    assert_eq!(trap.hits(), 0);
-    assert_eq!(hometown.count(), 1, "hometown request still made");
-    assert_eq!(stats.hometown_hits, 1);
-    // the proxy saw no unroutable traffic, so no DNS-dependent path was used
-    assert!(case.proxy.errors().is_empty(), "{:?}", case.proxy.errors());
-    let attempts = case.events_named("gateway.attempt");
-    assert_eq!(attempts.len(), 1);
-    assert_eq!(attempts[0]["outcome"], "refused");
-    assert!(!log_text(&case).contains(GATEWAY_HOST));
-}
-
-#[test]
-fn tc_net_04_negative_control_trap_fires() {
+fn tc_net_04_flagged_run_fails_at_deny_all_resolver() {
     let trap = GatewayTrap::new();
     let hometown = ScriptedStub::new(vec![Reply::json(200, &answer_body("null"))]);
     let olive = idle();
@@ -470,11 +438,36 @@ fn tc_net_04_negative_control_trap_fires() {
         &[("LIAM_STUB_GATEWAY_ATTEMPT", "1")],
     );
     case.assert_ok_empty_stderr();
-    assert_eq!(trap.hits(), 1);
-    assert_eq!(case.proxy.stats().gateway_attempts, 1);
+    let stats = case.proxy.stats();
+    // the direct attempt never reached any listener, including the service listener
+    assert_eq!(stats.gateway_attempts, 0);
+    assert_eq!(stats.refused_count, 0);
+    assert_eq!(stats.connect_attempts, 0);
+    assert_eq!(trap.hits(), 0);
+    assert_eq!(hometown.count(), 1, "hometown request still made");
+    assert_eq!(stats.hometown_hits, 1);
+    assert_eq!(stats.paths.len(), 1, "{:?}", stats.paths);
+    assert!(case.proxy.errors().is_empty(), "{:?}", case.proxy.errors());
     let attempts = case.events_named("gateway.attempt");
     assert_eq!(attempts.len(), 1);
-    assert_eq!(attempts[0]["outcome"], "allowed");
+    assert_eq!(attempts[0]["outcome"], "refused");
+    assert!(!log_text(&case).contains(GATEWAY_HOST));
+}
+
+#[test]
+fn tc_net_04_in_process_gateway_attempt_fails_at_resolver_with_zero_listener_bytes() {
+    let trap = GatewayTrap::new();
+    let hometown = ScriptedStub::new(vec![Reply::json(200, &answer_body("null"))]);
+    let olive = idle();
+    let proxy = TestProxy::with_gateway_trap(hometown.base_url(), olive.base_url(), trap.addr());
+    let transport = liam::clients::build_proxy_client().unwrap();
+    assert_eq!(gateway_attempt(&transport.client()), "refused");
+    assert_eq!(transport.resolver_calls(), 1);
+    assert_eq!(trap.hits(), 0);
+    let stats = proxy.stats();
+    assert!(stats.paths.is_empty(), "{:?}", stats.paths);
+    assert_eq!(stats.connect_attempts, 0);
+    assert_eq!(stats.gateway_attempts, 0);
 }
 
 // ---- olive status must be a vocabulary action_outcome (design §7.2, §7.4) ----
