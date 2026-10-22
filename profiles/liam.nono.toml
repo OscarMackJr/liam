@@ -9,6 +9,27 @@ purpose_source = "launch_arg"
 key_ttl_seconds = 3600
 inject_on = ["hometown", "olive"]
 
+# Service FQDNs. PLACEHOLDERS: the real hometown, olive and gateway API FQDNs are
+# not yet assigned. `scripts/launch-under-nono.ps1` refuses to launch while any
+# `.placeholder.invalid` name remains. nono requires `gateway` here (the
+# supervisor derives the popeye exchange URL from it); it is NOT in `inject_on`
+# and NOT on the network allowlist, so the child cannot reach it (D12).
+[agent.services]
+gateway  = "gateway.placeholder.invalid"
+hometown = "hometown.placeholder.invalid"
+olive    = "olive.placeholder.invalid"
+
+[network]
+# Proxy-only egress. Exactly the hometown and olive API FQDNs, matching
+# `[agent.services]`. No gateway, and no group or wildcard that covers it (D12).
+# Must stay non-empty: an empty allowlist is allow-all in nono-proxy.
+# Key name follows nono's `allow_domain`; nono profiles are JSON, so the final
+# translation of this draft is for nono-owner review.
+allow_domain = [
+    "hometown.placeholder.invalid",
+    "olive.placeholder.invalid",
+]
+
 [filesystem]
 # The only intended grants: executable directory (read/traverse), config and
 # receipt (read), and evidence directory (read/write). No additional grant is

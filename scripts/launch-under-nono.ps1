@@ -16,6 +16,9 @@ if (-not (Get-Command nono -ErrorAction SilentlyContinue)) {
 }
 if (-not (Test-Path -LiteralPath $Profile)) { throw "Profile not found: $Profile" }
 if (-not (Test-Path -LiteralPath $Config)) { throw "Configuration not found: $Config" }
+if (Select-String -LiteralPath $Profile -Pattern '\.placeholder\.invalid' -Quiet) {
+    throw "Profile still has placeholder service FQDNs: $Profile"
+}
 
 nono run --profile $Profile --purpose $Purpose -- `
     .\target\release\liam.exe --purpose $Purpose --party $Party --question $Question
