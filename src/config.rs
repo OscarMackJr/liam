@@ -28,12 +28,10 @@ pub struct NonoConfig {
 }
 #[derive(Debug, Deserialize)]
 pub struct ServiceConfig {
-    pub base_url: String,
     pub timeout_seconds: u64,
 }
 #[derive(Debug, Deserialize)]
 pub struct OliveConfig {
-    pub base_url: String,
     pub catalog_path: String,
     pub catalog_version: String,
     pub timeout_seconds: u64,
@@ -49,7 +47,7 @@ pub struct EvidenceConfig {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ValidatedProxy {
+pub struct ValidatedServiceUrl {
     pub url: String,
     pub port: u16,
 }
@@ -60,32 +58,46 @@ pub fn load(input: &str) -> Result<RuntimeConfig, &'static str> {
 pub fn sha256_hex(input: &[u8]) -> String {
     format!("{:x}", Sha256::digest(input))
 }
-pub fn validated_proxy(
-    https_proxy: &str,
-    http_proxy: &str,
-    no_proxy: &str,
-) -> Result<ValidatedProxy, &'static str> {
-    if https_proxy.is_empty() || http_proxy.is_empty() {
-        return Err("env:no_proxy");
+/// Strict manual parse of a `NONO_SERVICE_*_URL` value: exactly
+/// `http://127.0.0.1:<port><route>`. Reasons are fixed strings and never
+/// carry the value (content-free).
+pub fn validated_service_url(
+    value: &str,
+    route: &str,
+) -> Result<ValidatedServiceUrl, &'static str> {
+    if value.is_empty() {
+        return Err("env:service_url_missing");
     }
-    if !no_proxy.is_empty() {
-        return Err("env:no_proxy_nonempty");
+    if value.contains('?') || value.contains('#') {
+        return Err("env:service_url_not_loopback");
     }
-    if https_proxy != http_proxy {
-        return Err("env:proxy_not_loopback");
-    }
-    let port = https_proxy
+    let rest = value
         .strip_prefix("http://127.0.0.1:")
-        .ok_or("env:proxy_not_loopback")?
+        .ok_or("env:service_url_not_loopback")?;
+    let (segment, remainder) = match rest.find('/') {
+        Some(index) => rest.split_at(index),
+        None => (rest, ""),
+    };
+    let port: u16 = segment
         .parse()
-        .map_err(|_| "env:proxy_not_loopback")?;
-    if port == 0 || https_proxy != format!("http://127.0.0.1:{port}") {
-        return Err("env:proxy_not_loopback");
+        .map_err(|_| "env:service_url_not_loopback")?;
+    if port == 0 || format!("{port}") != segment {
+        return Err("env:service_url_not_loopback");
     }
-    Ok(ValidatedProxy {
-        url: https_proxy.to_owned(),
+    if remainder != route {
+        return Err("env:service_url_route");
+    }
+    Ok(ValidatedServiceUrl {
+        url: value.to_owned(),
         port,
     })
+}
+pub fn check_service_port(url_port: u16, record_port: u16) -> Result<(), &'static str> {
+    if url_port == record_port {
+        Ok(())
+    } else {
+        Err("env:service_url_port")
+    }
 }
 /// Resolves the evidence `runs_dir` before any network request. The only
 /// placeholder is `%LOCALAPPDATA%`; it must expand from a non-empty
@@ -108,7 +120,7 @@ pub fn resolve_runs_dir(path: &str, local_app_data: Option<&str>) -> Result<Stri
 
 #[cfg(test)]
 mod tests {
-    use super::{resolve_runs_dir, sha256_hex, validated_proxy};
+    use super::{check_service_port, resolve_runs_dir, sha256_hex, validated_service_url};
 
     #[test]
     fn runs_dir_must_expand_to_an_absolute_path() {
@@ -142,39 +154,86 @@ mod tests {
     }
 
     #[test]
-    fn accepts_only_matching_ipv4_loopback_proxy_urls_and_empty_no_proxy() {
-        let proxy = validated_proxy("http://127.0.0.1:50413", "http://127.0.0.1:50413", "")
-            .expect("valid loopback proxy");
-        assert_eq!(proxy.port, 50413);
-        assert_eq!(proxy.url, "http://127.0.0.1:50413");
+    fn accepts_exact_service_urls() {
+        let url = validated_service_url("http://127.0.0.1:50413/svc/hometown", "/svc/hometown")
+            .expect("valid");
+        assert_eq!(url.port, 50413);
+        assert_eq!(url.url, "http://127.0.0.1:50413/svc/hometown");
+        assert!(validated_service_url("http://127.0.0.1:1/svc/olive", "/svc/olive").is_ok());
     }
 
     #[test]
-    fn rejects_non_loopback_or_mismatched_proxy_environment() {
+    fn missing_service_url_is_reported() {
+        assert_eq!(
+            validated_service_url("", "/svc/hometown"),
+            Err("env:service_url_missing")
+        );
+    }
+
+    #[test]
+    fn rejects_non_loopback_service_urls() {
         for value in [
-            "http://localhost:50413",
-            "http://[::1]:50413",
-            "http://proxy.lab:50413",
-            "https://127.0.0.1:50413",
-            "http://user:password@127.0.0.1:50413",
-            "http://127.0.0.1:50413/path",
+            "http://localhost:50413/svc/hometown",
+            "http://[::1]:50413/svc/hometown",
+            "http://svc.lab:50413/svc/hometown",
+            "https://127.0.0.1:50413/svc/hometown",
+            "http://u:pw@127.0.0.1:50413/svc/hometown",
+            "http://127.0.0.1:50413/svc/hometown?x=1",
+            "http://127.0.0.1:50413/svc/hometown#f",
+            "http://127.0.0.1:50413/svc/hometown?",
+            "http://127.0.0.1:50413/svc/hometown#",
+            "http://127.1:50413/svc/hometown",
+            "http://2130706433:50413/svc/hometown",
+            "http://0x7f.0.0.1:50413/svc/hometown",
+            "http://127.0.0.1/svc/hometown",
+            "http://127.0.0.1:abc/svc/hometown",
+            "http://127.0.0.1:0/svc/hometown",
+            "http://127.0.0.1:05/svc/hometown",
+            "http://127.0.0.1:70000/svc/hometown",
+            "HTTP://127.0.0.1:50413/svc/hometown",
         ] {
             assert_eq!(
-                validated_proxy(value, value, ""),
-                Err("env:proxy_not_loopback")
+                validated_service_url(value, "/svc/hometown"),
+                Err("env:service_url_not_loopback"),
+                "{value}"
             );
         }
+    }
+
+    #[test]
+    fn rejects_wrong_routes() {
+        for value in [
+            "http://127.0.0.1:50413/svc/olive",
+            "http://127.0.0.1:50413/svc/hometown/",
+            "http://127.0.0.1:50413/svc/hometown/x",
+            "http://127.0.0.1:50413//svc/hometown",
+            "http://127.0.0.1:50413/other",
+            "http://127.0.0.1:50413",
+            "http://127.0.0.1:50413/svc/hometownX",
+            "http://127.0.0.1:50413/svc/%2e/hometown",
+            "http://127.0.0.1:50413/svc/hometow%6e",
+        ] {
+            assert_eq!(
+                validated_service_url(value, "/svc/hometown"),
+                Err("env:service_url_route"),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn service_port_must_match_the_record() {
+        assert_eq!(check_service_port(50413, 50413), Ok(()));
         assert_eq!(
-            validated_proxy("http://127.0.0.1:50413", "http://127.0.0.1:50414", ""),
-            Err("env:proxy_not_loopback")
+            check_service_port(50413, 50414),
+            Err("env:service_url_port")
         );
-        assert_eq!(
-            validated_proxy(
-                "http://127.0.0.1:50413",
-                "http://127.0.0.1:50413",
-                "hometown.lab"
-            ),
-            Err("env:no_proxy_nonempty")
-        );
+    }
+
+    #[test]
+    fn liam_toml_has_no_service_base_url() {
+        let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/liam.toml"))
+            .expect("liam.toml");
+        assert!(!text.contains("base_url"));
     }
 }

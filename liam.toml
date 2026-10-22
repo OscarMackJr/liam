@@ -9,11 +9,9 @@ record_public_key = ""
 expected_token_arm = ""
 
 [hometown]
-base_url = "https://hometown.invalid"
 timeout_seconds = 90
 
 [olive]
-base_url = "https://olive.invalid"
 catalog_path = "contracts/catalog-0.4.json"
 catalog_version = "0.4"
 timeout_seconds = 30
