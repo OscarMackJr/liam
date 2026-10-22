@@ -460,7 +460,7 @@ fn tc_net_04_in_process_gateway_attempt_fails_at_resolver_with_zero_listener_byt
     let hometown = ScriptedStub::new(vec![Reply::json(200, &answer_body("null"))]);
     let olive = idle();
     let proxy = TestProxy::with_gateway_trap(hometown.base_url(), olive.base_url(), trap.addr());
-    let transport = liam::clients::build_proxy_client().unwrap();
+    let transport = liam::clients::build_service_client().unwrap();
     assert_eq!(gateway_attempt(&transport.client()), "refused");
     assert_eq!(transport.resolver_calls(), 1);
     assert_eq!(trap.hits(), 0);

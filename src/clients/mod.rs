@@ -28,12 +28,12 @@ impl Resolve for DenyAllResolver {
     }
 }
 
-pub struct ProxyClient {
+pub struct ServiceClient {
     client: Client,
     resolver: Arc<DenyAllResolver>,
 }
 
-impl ProxyClient {
+impl ServiceClient {
     pub fn client(&self) -> Client {
         self.client.clone()
     }
@@ -43,7 +43,7 @@ impl ProxyClient {
     }
 }
 
-pub fn build_proxy_client() -> Result<ProxyClient, reqwest::Error> {
+pub fn build_service_client() -> Result<ServiceClient, reqwest::Error> {
     let resolver = Arc::new(DenyAllResolver::default());
     let client = Client::builder()
         .no_proxy()
@@ -51,7 +51,7 @@ pub fn build_proxy_client() -> Result<ProxyClient, reqwest::Error> {
         .redirect(reqwest::redirect::Policy::none())
         .dns_resolver(Arc::clone(&resolver))
         .build()?;
-    Ok(ProxyClient { client, resolver })
+    Ok(ServiceClient { client, resolver })
 }
 
 #[derive(serde::Deserialize)]
@@ -96,7 +96,7 @@ pub fn reason(service: &str, status: u16, body: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_proxy_client, error_code, id_ok, reason, DenyAllResolver};
+    use super::{build_service_client, error_code, id_ok, reason, DenyAllResolver};
 
     #[test]
     fn id_guard_accepts_only_the_identifier_pattern() {
@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn loopback_proxy_client_is_built_with_a_resolver_that_has_not_run() {
-        let client = build_proxy_client().expect("build client");
+        let client = build_service_client().expect("build client");
         assert_eq!(client.resolver_calls(), 0);
     }
 

@@ -1,6 +1,6 @@
 #![cfg(feature = "stubs")]
 
-use liam::clients::build_proxy_client;
+use liam::clients::build_service_client;
 use liam::clients::hometown::{AnswerRequest, HometownClient, HometownError, HttpHometownClient};
 use liam::clients::olive::{HttpOliveClient, OliveClient, OliveError, ProposalRequest};
 use liam::stubs::{CaptureProxy, HometownStub, OliveStub};
@@ -181,7 +181,7 @@ fn explicit_proxy_ignores_the_windows_system_proxy_trap() {
     let hometown = HometownStub::answer_without_proposal();
     let proxy = CaptureProxy::forward_once_to(hometown.base_url());
     let client = HttpHometownClient::new(
-        build_proxy_client()
+        build_service_client()
             .expect("build explicit client")
             .client(),
         &proxy.hometown_url(),
@@ -206,7 +206,7 @@ fn explicit_proxy_ignores_the_windows_system_proxy_trap() {
 fn hometown_request_has_no_authorization_before_proxy_injection() {
     let hometown = HometownStub::answer_without_proposal();
     let proxy = CaptureProxy::forward_once_to(hometown.base_url());
-    let transport = build_proxy_client().unwrap();
+    let transport = build_service_client().unwrap();
     let client = HttpHometownClient::new(transport.client(), &proxy.hometown_url(), 2);
 
     let answer = client
@@ -236,7 +236,7 @@ fn olive_request_has_no_authorization_before_proxy_injection() {
     let olive = OliveStub::awaiting_approval();
     let proxy = CaptureProxy::forward_once(olive.base_url(), "/v1/proposals");
     let client = HttpOliveClient::new(
-        build_proxy_client().unwrap().client(),
+        build_service_client().unwrap().client(),
         &proxy.olive_url(),
         2,
     );
@@ -272,7 +272,7 @@ fn hometown_server_error_is_classified_as_retryable_unavailability() {
     let hometown = HometownStub::server_error();
     let proxy = CaptureProxy::forward_once_to(hometown.base_url());
     let client = HttpHometownClient::new(
-        build_proxy_client().unwrap().client(),
+        build_service_client().unwrap().client(),
         &proxy.hometown_url(),
         2,
     );
@@ -310,7 +310,7 @@ fn hometown_terminal_statuses_have_the_documented_classification() {
         let hometown = HometownStub::status(status, body);
         let proxy = CaptureProxy::forward_once_to(hometown.base_url());
         let client = HttpHometownClient::new(
-            build_proxy_client().unwrap().client(),
+            build_service_client().unwrap().client(),
             &proxy.hometown_url(),
             2,
         );
@@ -335,7 +335,7 @@ fn olive_refusal_and_failures_preserve_status_boundaries() {
     );
     let proxy = CaptureProxy::forward_once(refused.base_url(), "/v1/proposals");
     let client = HttpOliveClient::new(
-        build_proxy_client().unwrap().client(),
+        build_service_client().unwrap().client(),
         &proxy.olive_url(),
         2,
     );
@@ -357,7 +357,7 @@ fn olive_refusal_and_failures_preserve_status_boundaries() {
         let olive = OliveStub::status(status, "{}");
         let proxy = CaptureProxy::forward_once(olive.base_url(), "/v1/proposals");
         let client = HttpOliveClient::new(
-            build_proxy_client().unwrap().client(),
+            build_service_client().unwrap().client(),
             &proxy.olive_url(),
             2,
         );

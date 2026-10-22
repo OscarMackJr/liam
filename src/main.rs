@@ -1,7 +1,7 @@
 use liam::{
     catalog,
     clients::{
-        build_proxy_client,
+        build_service_client,
         hometown::{
             AnswerRequest, AnswerResponse, HometownClient, HometownError, HttpHometownClient,
         },
@@ -187,7 +187,7 @@ fn main() {
         .unwrap_or_else(|reason| fail(11, reason));
     let run_id = Uuid::now_v7().to_string();
     let mut evidence = Evidence::new(runs_dir, run_id.clone(), now());
-    let transport = build_proxy_client().unwrap_or_else(|_| fail(21, "hometown:unavailable"));
+    let transport = build_service_client().unwrap_or_else(|_| fail(21, "hometown:unavailable"));
     let hometown = HttpHometownClient::new(
         transport.client(),
         &hometown_url.url,

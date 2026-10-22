@@ -1095,7 +1095,7 @@ mod scripted_tests {
         let hometown = ScriptedStub::new(vec![Reply::json(200, "{}")]);
         let olive = ScriptedStub::new(vec![Reply::json(202, "{}")]);
         let proxy = TestProxy::new(hometown.base_url(), olive.base_url());
-        let pc = crate::clients::build_proxy_client().expect("client");
+        let pc = crate::clients::build_service_client().expect("client");
         let client = pc.client();
         let r1 = client
             .post(format!("{}/v1/agent/answer", proxy.hometown_url()))
@@ -1127,7 +1127,7 @@ mod scripted_tests {
     fn unroutable_path_is_502_and_recorded() {
         let hometown = ScriptedStub::new(vec![Reply::json(200, "{}")]);
         let proxy = TestProxy::new(hometown.base_url(), hometown.base_url());
-        let pc = crate::clients::build_proxy_client().expect("client");
+        let pc = crate::clients::build_service_client().expect("client");
         let client = pc.client();
         for path in ["/other", "/svc/hometownX/v1"] {
             let response = client
@@ -1174,7 +1174,7 @@ mod scripted_tests {
     #[test]
     fn gateway_attempt_is_direct_and_trap_untouched() {
         let trap = GatewayTrap::new();
-        let pc = crate::clients::build_proxy_client().expect("client");
+        let pc = crate::clients::build_service_client().expect("client");
         assert_eq!(gateway_attempt(&pc.client()), "refused");
         assert_eq!(trap.hits(), 0);
         assert_eq!(pc.resolver_calls(), 1);
