@@ -143,6 +143,13 @@ Liam makes **exactly one** answer request and **at most one** proposal per run.
 
 ### 4.1 nono profile (`profiles/liam.nono.toml`)
 
+> **Editorial note (2026-10-22, Liam owner; not a contract change).** nono parses profiles
+> only as JSON(C), so the profile is `profiles/liam.nono.json`. The TOML below is the spec
+> form. nono 126.1's JSON translation keeps the same field names and meanings, and adds
+> `agent.user_key` (a credential locator, never key material) and `agent.profile_version`.
+> `agent.services` also carries `gateway` (nono derives the popeye exchange URL from it).
+> gateway is not in `inject_on` and not on `network.allow_domain`, so D12 is unchanged.
+
 Versioned in this repository, reviewed by the nono owner. Minimum content:
 
 - **Executable:** `liam.exe`; read/traverse grant for its directory only.

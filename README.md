@@ -39,11 +39,20 @@ and `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` and `NONO_SERVICE_GATEWAY_URL` ignor
 verified locally against stubs only; real-session evidence is Phase 2 plan 02-07, after
 nono 126.1 is built. A record or URL port mismatch now exits 11 `env:service_url_port`
 (it was 10 `agent_record:proxy_port`). Open item O-E: TC-E2E-03 needs redesign at its own
-phase, because Liam never names a host. `profiles/liam.nono.toml` is unchanged (no
-CONNECT-tied expectation found). Also announced, compatible with Liam: records under
+phase, because Liam never names a host. The profile is now `profiles/liam.nono.json` (2026-10-22, see below). Also announced, compatible with Liam: records under
 `%PROGRAMDATA%\nono\receipts\<session_id>\` (resolves `NONO_v0.4.3` O3); mint failure
 spawns no child and writes a Refused receipt with `pid=0`; purpose stays on
 `nono run --profile <p> --purpose <p>`.
+
+**Profile format (2026-10-22, editorial note on design section 4.1).** nono reads profiles
+only as JSON(C), so the draft profile moved from `profiles/liam.nono.toml` to
+`profiles/liam.nono.json`. The fields and their meaning are unchanged. nono 126.1 also
+requires `agent.user_key` (a credential locator, never key material) and
+`agent.profile_version` (4). The profile declares `agent.services` (gateway, hometown,
+olive; gateway is required by nono but neither injected nor allowlisted) and a non-empty
+`network.allow_domain` with only hometown and olive. Service FQDNs and the `user_key`
+locator are `.placeholder.invalid` until assigned. `scripts/launch-under-nono.ps1` refuses
+to launch while any placeholder remains. The structure is pending nono-owner review.
 
 ## Current implementation boundary
 

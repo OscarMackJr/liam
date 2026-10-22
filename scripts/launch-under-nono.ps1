@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory)][string]$Party,
     [Parameter(Mandatory)][string]$Question,
     [Parameter(Mandatory)][string]$Purpose,
-    [string]$Profile = "profiles/liam.nono.toml",
+    [string]$Profile = "profiles/liam.nono.json",
     [string]$Config = "liam.toml"
 )
 

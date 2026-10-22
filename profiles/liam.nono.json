@@ -1,0 +1,52 @@
+// Draft Liam profile for nono-owner review. Policy artifact only: it holds no
+// credential and no key material. nono parses profiles as JSONC (comments and
+// trailing commas allowed). The agent block follows nono 126.1's translation of
+// NONO_v0.4.1 section 3 / NONO_v0.4.2 section 3, accepted by the Liam owner on
+// 2026-10-22.
+//
+// PLACEHOLDERS: every `.placeholder.invalid` value (service FQDNs and the
+// user_key locator) is unassigned. scripts/launch-under-nono.ps1 refuses to
+// launch while any remains. Do not launch with `--allow-domain` or `extends`:
+// either can add hosts to the allowlist below.
+{
+  "meta": {
+    "name": "liam",
+    "description": "Liam single-shot agent: hometown answer, olive proposal",
+  },
+  "agent": {
+    "agent_id": "liam",
+    "purpose_source": "launch_arg",
+    "key_ttl_seconds": 3600,
+    "inject_on": ["hometown", "olive"],
+    // nono requires `gateway` here (the supervisor derives the popeye exchange
+    // URL from it). It is NOT in inject_on and NOT on the network allowlist, so
+    // the child cannot reach it (D12).
+    "services": {
+      "gateway": "gateway.placeholder.invalid",
+      "hometown": "hometown.placeholder.invalid",
+      "olive": "olive.placeholder.invalid",
+    },
+    // A credential locator (keyring:// or env://), never key material (D-08).
+    "user_key": "keyring://user-key.placeholder.invalid",
+    "profile_version": 4,
+  },
+  "network": {
+    // Proxy-only egress: exactly the inject_on FQDNs. No gateway, and no group
+    // or wildcard that covers it (D12). Must stay non-empty: an empty allowlist
+    // is allow-all in nono-proxy.
+    "allow_domain": [
+      "hometown.placeholder.invalid",
+      "olive.placeholder.invalid",
+    ],
+  },
+  // Design section 4.1 grants: executable directory (read/traverse), config
+  // (read), evidence directory (read/write). The receipt and agent record are
+  // granted by nono itself (read-only), so they are not listed. No additional
+  // grant without the handoff checkpoint. Paths assume launch from the repo
+  // root, as the launcher does.
+  "filesystem": {
+    "read": ["$WORKDIR/target/release"],
+    "read_file": ["$WORKDIR/liam.toml"],
+    "allow": ["$HOME/AppData/Local/Fiskroad/liam/runs"],
+  },
+}
