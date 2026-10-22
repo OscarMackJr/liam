@@ -32,7 +32,8 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
   4. The stubs, the `contracts/` schemas, README, `Cargo.toml`, `liam.toml`, `agent_version` and the profile version all agree with v0.4.1 (with A1/A2/A5 status recorded). The automated TC-NET-03 static check and the local TC-NET-04 gateway-trap harness pass in `cargo test`. `liam.toml` pins the canonical vocabulary hash (`60a44f00…`) and TC-LVOC passes against it.
   5. RESULTS.md has a measured row (n of n, tag, Liam commit, limits) for every v0.4.1 TC that can run locally. TC-START-07 (DSSE) is marked deferred.
 
-**Plans**: 12 plansPlans:
+**Plans**: 12 plans
+Plans:
 **Wave 1**
 
 - [x] 01-01-PLAN.md — 0.4.1 labels, profile type, gitattributes, shared test helper
@@ -76,7 +77,16 @@ Liam already has a working v0.4.0 core that has been verified against stubs. Thi
   4. Each refusal case is measured: a direct launch outside nono exits 10/11 with no network activity, a stopped WFP service gives a refused session or exit 10, and an unreachable key exchange makes nono refuse the session.
   5. Under a real session, Liam spawns zero child processes, touches only its file grants and makes zero DNS queries from its own PID.
 
-**Plans**: TBD
+**Plans**: 8 plans
+
+- [ ] 02-01-PLAN.md - gitignore, move TC-E2E-06 to Phase 3, standard-user check, SIGNOFF skeleton
+- [ ] 02-02-PLAN.md - pin nono commit, reinstall service/driver, diff probe
+- [ ] 02-03-PLAN.md - STOP GATE 1: contract diff (NONO-01)
+- [ ] 02-04-PLAN.md - STOP GATE 2: O7 token_arm and census, set expected_token_arm (NONO-02)
+- [ ] 02-05-PLAN.md - TC-START-06 ACL harness, real-record writability (NONO-03)
+- [ ] 02-06-PLAN.md - TC-E2E-03 direct launch, TC-E2E-04 WFP stopped (NONO-04)
+- [ ] 02-07-PLAN.md - Procmon/ETW captures for TC-SEC-01/02, TC-NET-08 (NONO-05)
+- [ ] 02-08-PLAN.md - trace-policy decision, RESULTS.md rows, docs-only commit
 
 ### Phase 3: Live hometown and popeye
 
