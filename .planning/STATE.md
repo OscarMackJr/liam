@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-22T11:46:49.891Z"
+last_updated: "2026-10-22T12:01:52.120Z"
 last_activity: 2026-10-22
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 20
-  completed_plans: 14
+  completed_plans: 15
   percent: 20
 stopped_at: Phase 01 complete (12/12) — ready to discuss Phase 2
 ---
@@ -90,6 +90,7 @@ None yet.
 - Phase 2: `expected_token_arm` can only be set after nono-owner sign-off on O7. Until then, every non-stub run exits `10 receipt:token_arm`.
 - Phases 2–4: these need builds of the nono fork, hometown §2.6, olive v1 and popeye key exchange on this machine. The user reports they are available or soon available.
 - Resolved in Phase 1 (01-12): `liam.toml` pins the canonical vocabulary hash `60a44f00…`, sourced from `fiskroad/contracts/vocabulary.yaml`.
+- Phase 2 STOPPED at gate 1 (02-03, 2026-10-22): nono cf3ebc56 does not emit Liam's contract (schema 1 receipt, 13 layers, no AgentKeyInjection, no AgentSessionRecord, no NONO_RECEIPT_PATH/NONO_AGENT_RECORD_PATH, no --purpose). Resume needs nono work + re-pin + re-run 02-03, or §4 re-ratification with NONO_v0.4.3. Plans 02-04..02-08 not run.
 
 ### Quick Tasks Completed
 
