@@ -1,7 +1,7 @@
 # Liam Amendment v0.4.2 — Service-URL Transport
 
 Version: 0.4.2
-Status: **RATIFIED 2026-10-22 — implementation pending.** nono Phase 126.1 accepted C1–C4 in planning (2026-10-22; C3 by deterministic route derivation); O-A resolved from nono facts; ratified by Oscar Mack together with the `NONO_v0.4.2` §2–§3 revision. Liam code changes follow in Phase 02.1; Status becomes implemented only after TC-NET-03, -05..-09 pass.
+Status: **RATIFIED 2026-10-22 — implemented in Phase 02.1 (d2bcb84); verified locally with stubs, real-session evidence pending.** nono Phase 126.1 accepted C1–C4 in planning (2026-10-22; C3 by deterministic route derivation); O-A resolved from nono facts; ratified by Oscar Mack together with the `NONO_v0.4.2` §2–§3 revision. Liam code changes landed in Phase 02.1; TC-NET-03, -05..-09 pass locally.
 Amends: `LIAM_DESIGN_SPEC_v0.4.1.md` D14, §9 first bullet, §10.2, §11 (code 11), §12 (REQ-LIAM-03); `LIAM_TEST_SPEC_v0.4.1.md` §3.2 (TC-NET-03, -05). Supersedes `LIAM_AMENDMENT_v0.4.1_proxy-transport.md` §2 items 1–3 and assumption A5.
 Re-ratification required with: `NONO_v0.4.2` §2–§3 (injection mechanism) only. C3 is met without changing `AgentSessionRecord`, so `NONO_v0.4.3` §5 and Liam design §4 are not in scope.
 Repository: `liam/specs/`.
