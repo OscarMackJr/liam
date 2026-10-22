@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.4.1
 milestone_name: Conformance
 status: executing
-last_updated: "2026-10-22T01:15:36.865Z"
+last_updated: "2026-10-22T01:49:40.280Z"
 last_activity: 2026-10-22
 progress:
   total_phases: 5
@@ -88,6 +88,7 @@ None yet.
 - Phase 2: `expected_token_arm` can only be set after nono-owner sign-off on O7. Until then, every non-stub run exits `10 receipt:token_arm`.
 - Phases 2–4: these need builds of the nono fork, hometown §2.6, olive v1 and popeye key exchange on this machine. The user reports they are available or soon available.
 - Resolved in Phase 1 (01-12): `liam.toml` pins the canonical vocabulary hash `60a44f00…`, sourced from `fiskroad/contracts/vocabulary.yaml`.
+- 02-02 Task 3 waiting: nono pin 4df47f0f contains a WR-05 test perturbation; user chose to re-pin to nono-28's final phase-126 commit (after nono-54 WR-05 fix + WR-03/IN-01..03). Then: update pin in 02-SIGNOFF, put Nono\target\release first on PATH, run reinstall -Stop, cargo build + sign (thumbprint B3C55463...), reinstall -Start, probe.
 
 ### Quick Tasks Completed
 
