@@ -191,6 +191,11 @@ mod tests {
             "http://127.0.0.1:05/svc/hometown",
             "http://127.0.0.1:70000/svc/hometown",
             "HTTP://127.0.0.1:50413/svc/hometown",
+            "http://127.0.0.1:+50413/svc/hometown",
+            "http://127.0.0.1: 50413/svc/hometown",
+            "http://127.0.0.1:50413\n/svc/hometown",
+            "http://127.0.0.1:５０４１３/svc/hometown",
+            "http://127.0.0.1:50413@evil/svc/hometown",
         ] {
             assert_eq!(
                 validated_service_url(value, "/svc/hometown"),
@@ -212,6 +217,8 @@ mod tests {
             "http://127.0.0.1:50413/svc/hometownX",
             "http://127.0.0.1:50413/svc/%2e/hometown",
             "http://127.0.0.1:50413/svc/hometow%6e",
+            "http://127.0.0.1:50413/svc/hometown\n",
+            "http://127.0.0.1:50413/SVC/hometown",
         ] {
             assert_eq!(
                 validated_service_url(value, "/svc/hometown"),
