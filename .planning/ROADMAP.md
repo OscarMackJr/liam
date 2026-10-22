@@ -119,11 +119,11 @@ Plans:
   2. Every malformed or mismatched service URL case in revised TC-NET-05 exits 11 with its reason, before any connection, with no run record
   3. A stub run sends only plain HTTP to `/svc/hometown` and `/svc/olive` on `127.0.0.1:<proxy_port>`: no CONNECT, no `Authorization`, resolver count 0 (TC-NET-09, TC-NET-06)
   4. `liam.toml` has no service `base_url`; revised TC-NET-03 and TC-NET-07 pass; full local suite green
-**Plans:** 1/6 plans executed
+**Plans:** 2/6 plans executed
 
 Plans:
 - [x] 02.1-01-PLAN.md - ratification gate (checkpoint) and amendment record
-- [ ] 02.1-02-PLAN.md - service-URL validator, record proxy_port, proxy-less client, main.rs wiring
+- [x] 02.1-02-PLAN.md - service-URL validator, record proxy_port, proxy-less client, main.rs wiring
 - [ ] 02.1-03-PLAN.md - stub path-routing listener and shared test helpers
 - [ ] 02.1-04-PLAN.md - TC-NET-03/05, TC-START-08, TC-KEY-01 tests
 - [ ] 02.1-05-PLAN.md - TC-NET-09, TC-NET-04/06/07 and process tests
