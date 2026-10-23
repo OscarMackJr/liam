@@ -149,6 +149,11 @@ Liam makes **exactly one** answer request and **at most one** proposal per run.
 > `agent.user_key` (a credential locator, never key material) and `agent.profile_version`.
 > `agent.services` also carries `gateway` (nono derives the popeye exchange URL from it).
 > gateway is not in `inject_on` and not on `network.allow_domain`, so D12 is unchanged.
+>
+> **Grant addition (2026-10-23, Liam owner).** The filesystem grants also include read-only
+> access to the catalog (`contracts/catalog-0.4.json`) and vocabulary
+> (`contracts/vendored/vocabulary.yaml`) files that `liam.toml` names, because Liam reads both
+> at startup. Without them a real session exits 11.
 
 Versioned in this repository, reviewed by the nono owner. Minimum content:
 

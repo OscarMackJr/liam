@@ -40,13 +40,19 @@
     ],
   },
   // Design section 4.1 grants: executable directory (read/traverse), config
-  // (read), evidence directory (read/write). The receipt and agent record are
-  // granted by nono itself (read-only), so they are not listed. No additional
-  // grant without the handoff checkpoint. Paths assume launch from the repo
-  // root, as the launcher does.
+  // (read), evidence directory (read/write). Plus, approved by the Liam owner
+  // 2026-10-23: read-only on the catalog and vocabulary files liam.toml names
+  // (Liam reads both at startup). The receipt and agent record are granted by
+  // nono itself (read-only), so they are not listed. No additional grant
+  // without the handoff checkpoint. Paths assume launch from the repo root, as
+  // the launcher does.
   "filesystem": {
     "read": ["$WORKDIR/target/release"],
-    "read_file": ["$WORKDIR/liam.toml"],
+    "read_file": [
+      "$WORKDIR/liam.toml",
+      "$WORKDIR/contracts/catalog-0.4.json",
+      "$WORKDIR/contracts/vendored/vocabulary.yaml",
+    ],
     "allow": ["$HOME/AppData/Local/Fiskroad/liam/runs"],
   },
 }

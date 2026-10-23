@@ -52,7 +52,9 @@ requires `agent.user_key` (a credential locator, never key material) and
 olive; gateway is required by nono but neither injected nor allowlisted) and a non-empty
 `network.allow_domain` with only hometown and olive. Service FQDNs and the `user_key`
 locator are `.placeholder.invalid` until assigned. `scripts/launch-under-nono.ps1` refuses
-to launch while any placeholder remains. The structure is pending nono-owner review.
+to launch while any placeholder remains. Filesystem grants are the section 4.1 three plus
+read-only access to the catalog and vocabulary files (approved 2026-10-23), which Liam reads at
+startup. The structure is pending nono-owner review.
 
 ## Current implementation boundary
 
