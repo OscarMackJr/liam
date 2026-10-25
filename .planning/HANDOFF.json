@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-10-25T15:22:37.262Z",
+  "phase": "2",
+  "phase_name": "Real nono Session",
+  "phase_dir": ".planning/phases/02-real-nono-session",
+  "plan": 3,
+  "task": 0,
+  "total_tasks": 8,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "02-01..02-03 (gate 1 stopped: nono cf3ebc56 MISMATCH)", "status": "done", "commit": "b5bbdb6"},
+    {"id": 2, "name": "Phase 02.1 service-URL transport, verified + code review fixed", "status": "done", "commit": "9b3ca07"},
+    {"id": 3, "name": "E2E-03 options note; owner chose option B", "status": "done", "commit": "96de897"},
+    {"id": 4, "name": "Profile to JSON (profiles/liam.nono.json) with nono 126.1 agent fields, allowlist, grants incl. catalog+vocab", "status": "done", "commit": "1d7e515"}
+  ],
+  "remaining_tasks": [
+    {"id": 5, "name": "Re-pin nono to the 126.1 commit (REQ-END-18..25 passing), update 02-SIGNOFF, run probe", "status": "not_started"},
+    {"id": 6, "name": "User: nono-reinstall -Stop, build + sign, -Start (admin)", "status": "not_started"},
+    {"id": 7, "name": "Re-run 02-03 gate 1, then 02-04..02-08", "status": "not_started"},
+    {"id": 8, "name": "Phase 5: implement E2E-03 option B; revise TC-NET-04 / TC-E2E-07", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "nono Phase 126.1 not yet delivered (plans 01-08 landed; 09-12 pending); nono-12 will message liam-ed with the commit hash", "type": "external", "workaround": "none; do not pin intermediate commits"},
+    {"description": "Real hometown, olive, gateway FQDNs unassigned; profile uses .placeholder.invalid and the launcher refuses them", "type": "human_action", "workaround": "none"},
+    {"description": "expected_token_arm needs nono-owner sign-off on O7 (agent-session token arm comes with 126.1 plans 09-11)", "type": "external", "workaround": "none"}
+  ],
+  "human_actions_pending": [
+    {"action": "Review uncommitted edit to profiles/liam.nono.json (user_key now env://LIAM_USER_KEY; allow_domain comment re bare *), made outside this session", "context": "Not made by Claude; left uncommitted. Says nono 126.1 refuses keyring://. env:// value is not a placeholder, so placeholder guard only trips on FQDNs", "blocking": false},
+    {"action": "Supply real service FQDNs", "context": "Needed before gate 1 re-run", "blocking": true},
+    {"action": "Admin reinstall steps after re-pin", "context": "nono services run from ~/Nono/target/release", "blocking": true}
+  ],
+  "decisions": [
+    {"decision": "E2E-03 option B: stubs-only raw CONNECT <gateway FQDN>:443 without token; nono records HostDenied", "rationale": "Matches original wording, no nono code change; fallback D if nono goes strict-auth", "phase": "5"},
+    {"decision": "Profile JSON conversion is an editorial note on design 4.1, not re-ratification", "rationale": "Same fields and meaning", "phase": "2"},
+    {"decision": "Accept nono 126.1 agent-block field names (incl. user_key, profile_version, 86400 cap)", "rationale": "Match spec; freeze when 126.1 ships", "phase": "2"},
+    {"decision": "Grant read-only catalog-0.4.json and vendored/vocabulary.yaml in profile", "rationale": "Liam reads both at startup; otherwise exit 11", "phase": "2"}
+  ],
+  "uncommitted_files": ["profiles/liam.nono.json"],
+  "next_action": "Ask the user about the uncommitted profiles/liam.nono.json edit (commit or revert), then check ~/Nono log (read-only) and wait for nono-12's 126.1 hash",
+  "context_notes": "Never write to ~/Nono; never self-elevate; never read .env; do not run --ignored TC-NET-07 casually. Peer sessions: nono-12 (nono 126.1). Option notes: .planning/notes/2026-10-22-e2e-03-options.md."
+}
